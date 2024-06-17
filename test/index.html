@@ -1,0 +1,23 @@
+<script src="../dist/index.js"></script>
+<script src="setup.js"></script>
+<script>
+const fixture={
+    "main.js": `
+import {urlToFile} from "petit-node";
+console.log("Hello, petit-node!");
+let home=urlToFile(import.meta.url).up();
+document.body.innerHTML=home.rel("main.html").text();
+`,
+    "main.html": `
+<h1>petit-node examples</h1>
+<ul>
+    <li><a href="esm.html">Import ES Module</a></li>
+    <li><a href="node_modules.html">Import node_modules</a></li>
+    <li><a href="errors.html">Error Handling</li>
+    <li><a href="aliases.html">Using aliases</li>
+    <li><a href="ide.html">Simple IDE</a></li>
+</ul>
+`
+};
+main(fixture);
+</script>

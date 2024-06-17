@@ -1,0 +1,39 @@
+<script src="../dist/index.js"></script>
+<script src="setup.js"></script>
+<script>
+const fixture={
+    "main.js": `
+import {on, convertStack, convertStack2} from "petit-node";
+import {foo,bar} from "./my_module.js";
+on("error", (evt)=>{
+    console.error(evt);
+    foo("Uncaught: "+evt.error.stack);
+});
+try {
+    foo(bar(21));
+} catch(e) {
+    console.error(e);
+    e=convertStack(e);
+    foo("Caught: "+e.stack);
+    const j=JSON.stringify(convertStack2(e));
+    foo("2:" +j);
+}
+foo(bar(21));
+`,
+    "my_module.js": `
+document.body.innerHTML+="<pre></pre>";
+const pre=document.querySelector("pre");
+export function foo(content) {
+    pre.innerHTML+=content+"\\n";
+}
+export function bar(x) {
+    return x*x.error.ocurres.here;
+}
+`,
+
+};
+pNode.on("error",(evt)=>{
+    console.log(evt);
+});
+main(fixture);
+</script>

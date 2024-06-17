@@ -1,0 +1,66 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.33.1/ace.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+<script src="https://mbraak.github.io/jqTree/tree.jquery.js"></script>
+<script src="../dist/index.js"></script>
+<script src="setup.js"></script>
+<script>
+const fixture={
+    "main.js": `
+import * as ace from "ace";
+import {urlToFile} from "petit-node";
+import {show} from "./treeview.js";
+const home=urlToFile(import.meta.url).up();
+document.body.innerHTML=home.rel("main.html").text();
+const element=document.querySelector("#editor");
+const editor=ace.edit(element);
+editor.setValue(home.rel("main.js").text());
+show();
+`,
+    "treeview.js": `
+import * as $ from "jquery";
+const data = [
+    {
+        name: 'node1', id: 1,
+        children: [
+            { name: 'child1', id: 2 },
+            { name: 'child2', id: 3 }
+        ]
+    },
+    {
+        name: 'node2', id: 4,
+        children: [
+            { name: 'child3', id: 5 }
+        ]
+    }
+];
+export function show() {
+    $('#files').tree({
+        data: data,
+        autoOpen: true,
+        //dragAndDrop: true
+    });
+
+}
+`,
+    "main.html": `
+<style>
+    #main{
+        width:100%; height:100%;
+    }
+    #menu{
+        width:100%; height:50px;
+    }
+    #editor{
+        width:100%; height:calc( 100% - 50px );
+    }
+</style>
+<div id="files"></div>
+<div id="main">
+    <div id="menu"><button id="run">Run</button></div>    
+    <div id="editor"></div>
+</div> 
+`
+};
+const aliases = {ace, jquery:$};
+main(fixture, aliases);
+</script>

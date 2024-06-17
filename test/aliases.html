@@ -1,0 +1,22 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.33.1/ace.js"></script>
+<script src="../dist/index.js"></script>
+<script src="setup.js"></script>
+<script>
+const fixture={
+    "main.js": `
+import * as ace from "ace";
+import {urlToFile} from "petit-node";
+const home=urlToFile(import.meta.url).up();
+document.body.innerHTML=home.rel("main.html").text();
+const element=document.querySelector("#editor");
+const editor=ace.edit(element);
+editor.setValue(home.rel("main.js").text());
+`,
+    "main.html": `
+<h1>Editor Example</h1>
+<div id="editor" style="width:600; height:300;"></div>
+`
+};
+const aliases = {ace};
+main(fixture, aliases);
+</script>
