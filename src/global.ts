@@ -3,8 +3,12 @@ declare let window:any;
 export async function initModuleGlobal(){ 
     const sym_gbl=("_"+Math.random()).replace(/\./,"");
     const jsCodeString=`
-const gbl={};
-window["${sym_gbl}"]=gbl;
+const gbl={
+    rawImport(url){
+        return import(url);
+    }
+};
+globalThis["${sym_gbl}"]=gbl;
 export default gbl;
 `;
     let blobUrl = jsToBlobURL(jsCodeString);

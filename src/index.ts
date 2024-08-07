@@ -8,13 +8,14 @@ import {convert} from "./convImport";
 import { aliases as aliasStore, Aliases,ModuleValue } from "./alias";
 import { ESModule, NodeModule, cache } from "./Module";
 export { ESModule, NodeModule } from "./Module";
-import {convertStack2} from "./convertStack";
-export {convertStack2} from "./convertStack";
+//import {convertStack2} from "./convertStack";
+//export {convertStack2} from "./convertStack";
 window.convert=convert;
 declare let window:any;
 type Global={
     aliases: Aliases,
-    hooks: {[key: string]: (res:ModuleValue)=>void}
+    //hooks: {[key: string]: (res:ModuleValue)=>void},
+    rawImport:(url:string)=>Promise<ModuleValue>,
 };
 type CreateScriptURLOption={
     deps:SFile[]|undefined,
@@ -32,7 +33,7 @@ export let events=new EventHandler();
 export let on=events.on.bind(events);
 let pNode={
     boot, importModule, loadModule, createModuleURL, ESModule, NodeModule, addAlias, addAliases,
-    convertStack, convertStack2, loadedModules, urlToFile, events, on, urlToPath, default:{} as any,
+    convertStack, loadedModules, urlToFile, events, on, urlToPath, default:{} as any,
 };
 export default pNode;
 pNode.default=pNode;
@@ -52,7 +53,7 @@ export async function boot(options:BootOptions={
     const ginf=await initModuleGlobal();
     gbl=ginf.value;
     gbl.aliases=aliasStore;
-    gbl.hooks={};
+    //gbl.hooks={};
     gbl_url=ginf.url;
     /*if (!gbl || !gbl_url) {
         console.log(ginf);
@@ -110,8 +111,9 @@ export function importModule(path:string|SFile ,base?:string|SFile):Promise<Modu
         mod=ESModule.fromFile(path);
     }
     let u=mod.url;
+    return gbl.rawImport(u);
 //    return import(u);
-
+/*
     let id=Math.random()+"";
     var blobUrl = jsToBlobURL(`
 import * as m from "${u}";
@@ -128,7 +130,7 @@ gbl.hooks['${id}'](m);
         loadScriptTag(blobUrl,{
             type:"module"
         }).then(()=>0,err);
-    });
+    });*/
 }
 export function loadModule(f:SFile){
     return loadScriptTag(createModuleURL(f),{
@@ -230,19 +232,19 @@ function errorHandler(ee:ErrorEvent){
     });
 }
 export function convertStack<T extends string|Error>(stack:T):T {
-    if (typeof stack!=="string") {
+    return stack as T;
+    /*if (typeof stack!=="string") {
         let e:Error=stack;
         if (!e) return e;
         if (typeof e.stack==="string") e.stack=convertStack(e.stack);
         if (typeof e.message==="string") e.message=convertStack(e.message);
-        return e as T;
     } else {
         let s:string=stack;
         for(var {url,file} of cache){
             s=s.replaceAll(url,file.path());
         }
         return s as T;    
-    }
+    }*/
 }
 window.addEventListener("error",errorHandler);
 

@@ -1,0 +1,101 @@
+<html>
+    <body>
+        <script>
+addEventListener("error",(...args)=>{
+    alert(args[0].message); 
+});
+addEventListener("unhandledrejection", function(promiseRejectionEvent) {
+    alert(promiseRejectionEvent.reason.stack);
+});
+
+</script>
+<script src="./console.js"></script>
+<script src="../dist/index.js"></script>
+
+<input type="file" id="file"/>
+<button onclick="boot()">Boot</button>
+<script>
+async function boot(){
+    try{
+        const n=new pNode.NodeModule(FS.get("/jsmod/"));
+        await pNode.loadModule(n.getMain().file);
+        console.log("boot start: "+n.getMain().file);
+    }catch(e){
+        console.error(e.stack);
+    }
+}
+async function init(){
+    await pNode.boot({
+        async init({FS}){
+            globalThis.FS=FS.default;
+            globalThis.FS.os={
+                importModule:pNode.importModule,
+                loadModule:pNode.importModule,
+                createModuleURL:pNode.createModuleURL,
+                urlToPath:pNode.urlToPath,
+                createURL,
+                convertStack:pNode.convertStack,
+                loadScriptTag,
+            };
+            FS.mount("/tmp/",FS.LSFS.ramDisk());
+            
+        },
+    });
+        console.log("inited");
+
+}
+init();
+main();
+function createURL(f){
+    if(!f.exists()){
+        throw new Error(`Cannot createURL ${f}: not exists`);
+    }
+    const blob=f.getBlob();
+    const blobUrl = URL.createObjectURL(blob);
+    return blobUrl;
+}
+function loadScriptTag(url,attr={}){
+    const script = document.createElement('script');
+    script.src = url;
+    for(let k in attr){
+        script.setAttribute(k,attr[k]);
+    }
+    //script.type="module";
+    return new Promise(
+        function (resolve,reject){
+            script.addEventListener("load",resolve);
+            script.addEventListener("error",reject);
+            document.head.appendChild(script);
+    });
+}
+function main(dst){
+    const fi=document.querySelector("#file");
+    fi.addEventListener("input",oninput);
+    async function oninput(e){
+        try{
+            let b=await readFile(fi.files[0]);
+            /*let f=fi.value.split(/[\\\/]/);
+            f=f.pop();
+            console.log(b,f);*/
+            const dst=FS.get("/tmp/up.zip");
+            dst.setBytes(b);
+            const ext=FS.get("/jsmod/");
+            await FS.zip.unzip(dst,ext,{overwrite:true});
+            console.log("extracted");
+        }catch(ex){
+            console.error(ex);
+        }
+    }
+    function readFile(file) {
+        return new Promise(function (succ) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                succ(reader.result);
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    }
+}
+</script>
+    </body>
+</html>
