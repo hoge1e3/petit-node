@@ -3,7 +3,7 @@
 <script>
 const fixture={
     "main.js": `
-import {on, convertStack, convertStack2} from "petit-node";
+import {on} from "petit-node";
 import {foo,bar} from "./my_module.js";
 on("error", (evt)=>{
     console.error(evt);
@@ -13,10 +13,7 @@ try {
     foo(bar(21));
 } catch(e) {
     console.error(e);
-    e=convertStack(e);
     foo("Caught: "+e.stack);
-    const j=JSON.stringify(convertStack2(e));
-    foo("2:" +j);
 }
 foo(bar(21));
 `,

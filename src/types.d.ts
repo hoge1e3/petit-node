@@ -5,6 +5,7 @@ declare type SFile ={
     rel(path:string): SFile,
     sibling(path:string): SFile,
     exists(): boolean,
+    isDir(): boolean,
     path(): string,
     name(): string,
     obj(): Object,

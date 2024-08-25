@@ -6,11 +6,12 @@
       "target": "ES6",
       "lib": ["es2021"],
       // TSのモジュールはES Modulesとして出力
-      "module": "es6",
+      "module": "esnext",
       //"allowImportingTsExtensions": true,
       //"noEmit": true,
       "moduleResolution": "node",
       // 厳密モードとして設定
-      "strict": true
+      "strict": true,
+      "outDir":"./js"
     }
   }

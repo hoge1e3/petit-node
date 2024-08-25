@@ -57,7 +57,7 @@ export function convert(file: SFile,urlConverter:URLConverter): ESModule {
   simple(ast, visitor);
 
   let conv2=sourceCode;
-  console.log("repls",repls);
+  //console.log("repls",repls);
   for(let {range,to} of repls){
       //console.log("slice",conv2.slice(...range),range,to);
       conv2=spliceStr(conv2,range[0],range[1],to);

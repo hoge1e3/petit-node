@@ -10,20 +10,22 @@ addEventListener("unhandledrejection", function(promiseRejectionEvent) {
 
 </script>
 <script src="./console.js"></script>
+<!--
 <script src="../dist/index.js"></script>
-
+-->
 <input type="file" id="file"/>
 <button onclick="boot()">Boot</button>
-<script>
+<script type="module">
+import pNode from "../dist/index.js";
+globalThis.pNode=pNode;
 async function boot(){
     try{
-        const n=new pNode.NodeModule(FS.get("/jsmod/"));
-        await pNode.loadModule(n.getMain().file);
-        console.log("boot start: "+n.getMain().file);
+        await pNode.importModule(FS.get("/jsmod/"));
     }catch(e){
         console.error(e.stack);
     }
 }
+globalThis.boot=boot;
 async function init(){
     await pNode.boot({
         async init({FS}){
@@ -41,7 +43,7 @@ async function init(){
             
         },
     });
-        console.log("inited");
+    console.log("inited");
 
 }
 init();
@@ -54,13 +56,19 @@ function createURL(f){
     const blobUrl = URL.createObjectURL(blob);
     return blobUrl;
 }
-function loadScriptTag(url,attr={}){
+function loadScriptTag(url,attr){
+    if (attr.type!=="module" && 
+        typeof define==="function" && 
+        define.amd && 
+        typeof requirejs==="function") {
+        return new Promise(
+            (s)=>requirejs([url],(r)=>s(r)));
+    }
     const script = document.createElement('script');
     script.src = url;
     for(let k in attr){
         script.setAttribute(k,attr[k]);
     }
-    //script.type="module";
     return new Promise(
         function (resolve,reject){
             script.addEventListener("load",resolve);
@@ -68,6 +76,7 @@ function loadScriptTag(url,attr={}){
             document.head.appendChild(script);
     });
 }
+
 function main(dst){
     const fi=document.querySelector("#file");
     fi.addEventListener("input",oninput);
