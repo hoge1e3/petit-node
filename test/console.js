@@ -24,13 +24,13 @@ function addLog(message, type = 'log') {
 const originalLog = console.log;
 const originalError = console.error;
 
+const joinary=(a)=>a.map((e)=>e!=null?e.toString():e+"").join(" ");
 console.log = function(...args) {
-  addLog(args.join(' '), 'log');
+  addLog(joinary(args), 'log');
   originalLog.apply(console, args);
 };
-
 console.error = function(...args) {
-  addLog(args.join(' '), 'error');
+  addLog(joinary(args), 'error');
   originalError.apply(console, args);
 };
 
