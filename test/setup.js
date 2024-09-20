@@ -29,7 +29,7 @@ async function main(fixture,aliases){
     });
 }   
 function checkModuleExports(mod) {
-    const errors=[]
+    const errors=[];
     for (let k in mod) {
         if (k==="default") continue;
         if (mod[k]!==mod.default[k]) errors.push("+"+k);//throw new Error("Attribute missing in default: "+k);

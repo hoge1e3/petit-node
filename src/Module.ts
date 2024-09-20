@@ -1,4 +1,4 @@
-import { RawSourceMap, SourceMapConsumer } from "source-map";
+//import { RawSourceMap, SourceMapConsumer } from "source-map";
 import {aliases } from "./alias";
 import { convert } from "./convImport";
 import FS from "@hoge1e3/fs";
@@ -30,7 +30,8 @@ export class ESModule {
         public dependencies: ESModule[],
         public url: string,
         public generatedCode: string,
-        public sourceMap: RawSourceMap) {
+        //public sourceMap: RawSourceMap
+        ) {
 
     }
     shouldReload():boolean {
