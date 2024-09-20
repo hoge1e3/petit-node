@@ -1,0 +1,10 @@
+{
+    "editor.renderWhitespace": "all",
+    "eslint.useESLintClass": true ,
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint":"always"
+    },
+    "eslint.validate": [
+        "javascript"
+    ]
+}
