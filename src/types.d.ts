@@ -30,9 +30,11 @@ declare type Content={
 declare module "@hoge1e3/fs" {
     const def:{
         get:SFileGetter,
-        Content: ContentFactory,
+	Content: ContentFactory,
+	getEnv: (name:string)=>(string|undefined);
     };
     export default def;
     export const get:SFileGetter;
     export const Content:ContentFactory;
+    export function getEnv(name:string):string|undefined;
 }

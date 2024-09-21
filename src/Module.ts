@@ -38,10 +38,16 @@ export class ESModule {
         if (this.file.lastUpdate()!==this.timestamp) return true;
         return this.dependencies.some((dep)=>dep.shouldReload());
     }
+    dispose(){
+        URL.revokeObjectURL(this.url);
+    }
     static fromFile(file:SFile):ESModule {
         const incache=cache.getByFile(file);
         if (incache && !incache.shouldReload()) return incache;
-        if (incache) cache.delete(incache);
+        if (incache) {
+            cache.delete(incache);
+            incache.dispose();
+        }
         const deps=[] as ESModule[];
         const base=file.up();
         const urlConverter={
@@ -93,6 +99,19 @@ export class NodeModule {
                     return new NodeModule(p);
                 }
             }
+        }
+	let np=FS.getEnv("NODE_PATH");
+	if (np) {
+	    const nps=np.split(":");
+	    for(let nnp of nps) {
+	      let n=FS.get(nnp);
+	      if (n.exists()) {
+                 let p=n.rel(name+"/");
+                 if(p.exists()){
+                    return new NodeModule(p);
+                 }
+	      }
+	    }
         }
         throw new Error(`${name} not found from ${base}`);
     }

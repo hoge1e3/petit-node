@@ -8,10 +8,12 @@ consoleElement.innerHTML = `
 `;
 document.body.appendChild(consoleElement);
 
-const consoleOutput = document.getElementById('console-output');
 
 // Function to add log to the console
 function addLog(message, type = 'log') {
+  const consoleOutput = document.getElementById('console-output');
+  if(!consoleOutput)return;
+  message=joinary(message);
   const logElement = document.createElement('div');
   logElement.style.marginBottom = '4px';
   logElement.style.color = type === 'error' ? '#ff6b6b' : '#69db7c';
@@ -24,13 +26,17 @@ function addLog(message, type = 'log') {
 const originalLog = console.log;
 const originalError = console.error;
 
-const joinary=(a)=>a.map((e)=>e!=null?e.toString():e+"").join(" ");
+const joinary=(a)=>a.map((e)=>
+   e!=null?
+       (e.toString?e.toString():typeof e)
+       :e+""
+).join(" ");
 console.log = function(...args) {
-  addLog(joinary(args), 'log');
+  addLog(args, 'log');
   originalLog.apply(console, args);
 };
 console.error = function(...args) {
-  addLog(joinary(args), 'error');
+  addLog(args, 'error');
   originalError.apply(console, args);
 };
 
