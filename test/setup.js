@@ -1,5 +1,5 @@
-/* global pNode */
-function loadFixture(dir,fixture) {
+import pNode from "../dist/index.js";
+export function loadFixture(dir,fixture) {
     for (let name in fixture) {
         const f=dir.rel(name);
         const val=fixture[name];
@@ -14,7 +14,7 @@ function loadFixture(dir,fixture) {
         }
     }
 }
-async function main(fixture,aliases){
+export async function main(fixture,aliases){
     checkModuleExports(pNode);
     await pNode.boot({
         async init({FS}){

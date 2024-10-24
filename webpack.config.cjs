@@ -9,15 +9,22 @@ module.exports = (env,argv)=>({
     experiments: {
     	outputModule: true,
     },
-    output: {
+    output: //[
+      {
         //library: "pNode",
         //libraryTarget: 'umd',
-	libraryTarget: 'module',
-        //  出力ファイルのディレクトリ名
+	      libraryTarget: 'module',
         path: `${__dirname}/dist`,
-        // 出力ファイル名
         filename: "index.js",
-    },
+      },
+      /*{
+        library: "pNode",
+        libraryTarget: 'umd',
+      	//libraryTarget: 'module',
+        path: `${__dirname}/dist`,
+        filename: "index.umd.js",
+      },
+    ],*/
     module: {
         rules: [
             {

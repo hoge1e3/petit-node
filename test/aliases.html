@@ -1,7 +1,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.33.1/ace.js"></script>
-<script src="../dist/index.js"></script>
-<script src="setup.js"></script>
-<script>
+<!--script src="../dist/index.js"></script>
+<script src="setup.js"></script-->
+<script type="module">
+import {main} from "./setup.js";
 const fixture={
     "main.js": `
 import * as ace from "ace";

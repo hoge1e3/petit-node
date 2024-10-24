@@ -1,6 +1,7 @@
-<script src="../dist/index.js"></script>
-<script src="setup.js"></script>
-<script>
+<!--script src="../dist/index.js"></script>
+<script src="setup.js"></script-->
+<script type="module">
+import {main} from "./setup.js";
 const fixture={
     "main.js": `
 import {urlToFile} from "petit-node";
@@ -15,7 +16,6 @@ document.body.innerHTML=home.rel("main.html").text();
     <li><a href="node_modules.html">Import node_modules</a></li>
     <li><a href="errors.html">Error Handling</li>
     <li><a href="aliases.html">Using aliases</li>
-    <li><a href="ide.html">Simple IDE</a></li>
 </ul>
 `
 };
