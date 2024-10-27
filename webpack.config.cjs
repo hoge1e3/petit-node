@@ -1,5 +1,19 @@
 
 const IgnoreDynamicRequire = require('webpack-ignore-dynamic-require');
+const type="esm";
+const outputs={
+  esm: {
+    libraryTarget: 'module',
+    path: `${__dirname}/dist`,
+    filename: "index.js",
+  },
+  umd: {
+    library: "pNode",
+    libraryTarget: 'umd',
+    path: `${__dirname}/dist`,
+    filename: "index.umd.js",
+  }
+};
 module.exports = (env,argv)=>({
     // モード値を production に設定すると最適化された状態で、
     // development に設定するとソースマップ有効でJSファイルが出力される
@@ -9,22 +23,7 @@ module.exports = (env,argv)=>({
     experiments: {
     	outputModule: true,
     },
-    output: //[
-      {
-        //library: "pNode",
-        //libraryTarget: 'umd',
-	      libraryTarget: 'module',
-        path: `${__dirname}/dist`,
-        filename: "index.js",
-      },
-      /*{
-        library: "pNode",
-        libraryTarget: 'umd',
-      	//libraryTarget: 'module',
-        path: `${__dirname}/dist`,
-        filename: "index.umd.js",
-      },
-    ],*/
+    output: outputs[type],
     module: {
         rules: [
             {
