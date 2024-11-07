@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="ja">
+    <head>
+	<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=0" />    
+        <script>
+        window.addEventListener('error', function(event) {
+            if (event.target.tagName === 'SCRIPT') {
+                alert('Script error:'+event.target.src);
+            }
+            alert(event.message||event.toString());
+        }, true);
+        </script>
+        <script type="module" src="upload.js"></script>
+    </head>
+    <body>
+    </body>
+</html>
+

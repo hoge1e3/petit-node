@@ -6,8 +6,8 @@ import { initModuleGlobal } from "./global";
 import {EventHandler} from "@hoge1e3/events";
 import {convert} from "./convImport";
 import { aliases as aliasStore, Aliases,ModuleValue } from "./alias";
-import { ESModule, NodeModule, cache } from "./Module";
-export { ESModule, NodeModule } from "./Module";
+import { CompiledESModule, ESModuleEntry, NodeModule, compiledCache as cache } from "./Module";
+export { CompiledESModule, NodeModule } from "./Module";
 window.convert=convert;
 declare let window:any;
 type Global={
@@ -32,7 +32,9 @@ const thisUrl=()=>(
 export let events=new EventHandler();
 export let on=events.on.bind(events);
 let pNode={
-    boot, importModule, createModuleURL, ESModule, NodeModule, addAlias, addAliases,
+    boot, importModule, createModuleURL, 
+    CompiledESModule, ESModuleEntry,
+    ESModule: CompiledESModule, NodeModule, addAlias, addAliases,
     convertStack, loadedModules, urlToFile, events, on, urlToPath, 
     thisUrl,
     default:{} as any,
@@ -96,33 +98,32 @@ ${Object.keys(value as any).map((key)=>
         value,
     };
 }
-export function importModule(path: SFile):Promise<ModuleValue>;
-export function importModule(path: string, base: string|SFile):Promise<ModuleValue>;
-export function importModule(path:string|SFile ,base?:string|SFile):Promise<ModuleValue>{
-    let mod:ESModule;
+export async function importModule(path: SFile):Promise<ModuleValue>;
+export async function importModule(path: string, base: string|SFile):Promise<ModuleValue>;
+export async function importModule(path:string|SFile ,base?:string|SFile):Promise<ModuleValue>{
+    let mod:CompiledESModule;
     if(base){
         if (typeof path!=="string") {
             throw new Error("Invalid argument: either (file) or (str,file)");
         }
-        mod=ESModule.resolve(path,
-        typeof base==="string"?FS.get(base):base);
+        mod=await ESModuleEntry.resolve(path,
+        typeof base==="string"?FS.get(base):base).compile();
     } else {
         if (typeof path==="string") {
             throw new Error("Invalid argument: either (file) or (str,file)");
         }
         if(path.isDir()){
-            mod=new NodeModule(path).getMain();
+            mod=await new NodeModule(path).getMain().compile();
         }else{
-            mod=ESModule.fromFile(path);
+            mod=await ESModuleEntry.fromFile(path).compile();
         }
     }
     let u=mod.url;
     return import(/* webpackIgnore: true */u);
-    //return gbl.rawImport(u);
 }
 
-export function createModuleURL(f:SFile):string{
-    return ESModule.fromFile(f).url;
+export async function createModuleURL(f:SFile):Promise<string>{
+    return (await ESModuleEntry.fromFile(f).compile()).url;
 }
 function isError(e:any):e is Error{
     return e&&typeof e.stack==="string";
@@ -141,7 +142,7 @@ export function convertStack<T extends string|Error>(stack:T):T {
 }
 window.addEventListener("error",errorHandler);
 
-export function* loadedModules():Generator<ESModule> {
+export function* loadedModules():Generator<CompiledESModule> {
     for(var entry of cache){
         yield entry;
     }

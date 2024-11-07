@@ -4,16 +4,16 @@ import * as espree from 'espree';
 import { simple } from "acorn-walk";
 //import { SourceMapGenerator } from "source-map";
 import { Content } from "@hoge1e3/fs";
-import { ESModule } from "./Module";
+import { ESModuleEntry, CompiledESModule } from "./Module";
 
 
 type URLConverter = {
-  conv:(s: string) => string;
-  deps:ESModule[];
+  conv:(s: string) => Promise<string>;
+  deps:CompiledESModule[];
 };
 type Replacement={
     range:number[],
-    to:string,
+    to:Promise<string>,
 };
 function spliceStr(str:string, 
     begin:number, end:number, 
@@ -22,8 +22,9 @@ function spliceStr(str:string,
   const lastPart = str.slice(end);
   return firstPart + (replacement || '') + lastPart;
 }
-export function convert(file: SFile,urlConverter:URLConverter): ESModule {
-  let sourceCode=file.text();
+export async function convert(entry: ESModuleEntry,urlConverter:URLConverter): Promise<CompiledESModule> {
+  const file=entry.file;
+  const sourceCode=file.text();
   let ast;
   try {
     ast = espree.parse(sourceCode, {
@@ -43,7 +44,7 @@ export function convert(file: SFile,urlConverter:URLConverter): ESModule {
         const originalSource = node.source.value;
         const convertedSource = urlConverter.conv(originalSource as string);
         repls.unshift({
-          to: JSON.stringify(convertedSource),
+          to: convertedSource.then((s)=>JSON.stringify(s)),
           range:range.slice()
         });
         //node.source.value = convertedSource;
@@ -54,7 +55,7 @@ export function convert(file: SFile,urlConverter:URLConverter): ESModule {
 
   let conv2=sourceCode;
   for(let {range,to} of repls){
-      conv2=spliceStr(conv2,range[0],range[1],to);
+      conv2=spliceStr(conv2,range[0],range[1],await to);
   }
   const sourceURL=`//# sourceURL=file://${file.path()}`;
   const gensrc=`${conv2}
@@ -62,8 +63,7 @@ ${sourceURL}
 `;
 
   const url= URL.createObjectURL(new Blob([gensrc],{type:"text/javascript"}));
-  return new ESModule(
-    file, sourceCode, file.lastUpdate(), 
-    urlConverter.deps,
-    url, gensrc);
+  return new CompiledESModule(
+    entry, 
+    urlConverter.deps, url, gensrc);
 }
