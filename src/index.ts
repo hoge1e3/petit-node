@@ -32,8 +32,8 @@ const thisUrl=()=>(
 export let events=new EventHandler();
 export let on=events.on.bind(events);
 let pNode={
-    boot, importModule, createModuleURL, 
-    CompiledESModule, ESModuleEntry,
+    boot, importModule, createModuleURL, resolveEntry, 
+    CompiledESModule, ESModuleEntry, 
     ESModule: CompiledESModule, NodeModule, addAlias, addAliases,
     convertStack, loadedModules, urlToFile, events, on, urlToPath, 
     thisUrl,
@@ -98,30 +98,41 @@ ${Object.keys(value as any).map((key)=>
         value,
     };
 }
-export async function importModule(path: SFile):Promise<ModuleValue>;
-export async function importModule(path: string, base: string|SFile):Promise<ModuleValue>;
-export async function importModule(path:string|SFile ,base?:string|SFile):Promise<ModuleValue>{
-    let mod:CompiledESModule;
+const invalidSpec=()=>new Error("Invalid argument: either (file) or (str,file)");
+export function resolveEntry(path: SFile):ESModuleEntry;
+export function resolveEntry(path: string, base: string|SFile):ESModuleEntry;
+export function resolveEntry(path: string|SFile ,base?:string|SFile):ESModuleEntry{
+    let mod:ESModuleEntry;
     if(base){
-        if (typeof path!=="string") {
-            throw new Error("Invalid argument: either (file) or (str,file)");
-        }
-        mod=await ESModuleEntry.resolve(path,
-        typeof base==="string"?FS.get(base):base).compile();
+        if (typeof path!=="string") throw invalidSpec();
+        mod=ESModuleEntry.resolve(
+            path,
+            typeof base==="string"?FS.get(base):base
+        );
     } else {
-        if (typeof path==="string") {
-            throw new Error("Invalid argument: either (file) or (str,file)");
-        }
+        if (typeof path==="string") throw invalidSpec();
         if(path.isDir()){
-            mod=await new NodeModule(path).getMain().compile();
+            mod=new NodeModule(path).getMain();
         }else{
-            mod=await ESModuleEntry.fromFile(path).compile();
+            mod=ESModuleEntry.fromFile(path);
         }
     }
-    let u=mod.url;
+    return mod;
+}
+export async function importModule(path: SFile):Promise<ModuleValue>;
+export async function importModule(path: string, base: string|SFile):Promise<ModuleValue>;
+export async function importModule(path: string|SFile ,base?:string|SFile):Promise<ModuleValue>{
+    let mod;
+    if (base) {
+        if (typeof path!=="string") throw invalidSpec();
+        mod=resolveEntry(path,base);
+    } else {
+        if (typeof path==="string") throw invalidSpec();
+        mod=resolveEntry(path);
+    }
+    let u=(await mod.compile()).url;
     return import(/* webpackIgnore: true */u);
 }
-
 export async function createModuleURL(f:SFile):Promise<string>{
     return (await ESModuleEntry.fromFile(f).compile()).url;
 }

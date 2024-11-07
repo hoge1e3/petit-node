@@ -53,9 +53,34 @@ export class CompiledESModule {
     get timestamp(){return this.entry.timestamp;}
 }
 type CompilationListener=(r:CompiledESModule)=>void;
+type CompiledEvent={
+    module: CompiledESModule,
+};
+type CompileStartEvent={
+    entry: ESModuleEntry,
+};
+type CompilationContext={
+    oncompilestart?:(e:CompileStartEvent)=>Promise<void>,
+    oncompiled?:(e:CompiledEvent)=>Promise<void>,
+    oncachehit?:(e:CompiledEvent)=>Promise<void>,
+    onwaitcompiled:(e:CompileStartEvent)=>Promise<void>,
+};
+type CompileState={
+    type:"init"
+}| {
+    type:"loading", 
+    listeners: CompilationListener[],
+}| {
+    type:"complete",
+    module: CompiledESModule,
+}| {
+    type:"error",
+    error: Error,
+};
 export class ESModuleEntry {
-    compiled: CompiledESModule|undefined;
-    compilationListeners: CompilationListener[]|undefined;  
+    //compiled: CompiledESModule|undefined;
+    //compilationListeners: CompilationListener[]|undefined;  
+    state: CompileState={type:"init"};
     constructor(
         public file: SFile,
         public sourceCode: string,
@@ -71,13 +96,53 @@ export class ESModuleEntry {
         if (!this.compiled) return; 
         this.compiled.dispose();
     }
-    async compile():Promise<CompiledESModule> {
-        if (this.compiled) return this.compiled;
-        if (this.compilationListeners) {
-            const listeners=this.compilationListeners;
-            return new Promise((s)=>listeners.push(s));
+    get compiled(){
+        const state=this.state;
+        return state.type==="complete"&&state.module;
+    }
+    enter():CompileState {
+        const prev=this.state;
+        switch (this.state.type) {
+            case "init":
+                this.state={
+                    type:"loading", listeners:[],
+                };
+                return prev;
+            default:
+                return this.state;
         }
-        this.compilationListeners=[];
+    }
+    complete(module: CompiledESModule) {
+        if (this.state.type!=="loading")throw new Error("Illegal state: "+this.state.type);
+        for (let f of this.state.listeners) f(module);
+        this.state={type:"complete",module};
+        return module;
+    }
+    error(e:Error) {
+        this.state={type:"error",error:e};
+        return e;
+    }
+    async compile(context?:CompilationContext):Promise<CompiledESModule> {
+        const prevState=this.enter();
+        switch(prevState.type) {
+            case "complete":
+                if (context?.oncachehit) await context.oncachehit({module:prevState.module});
+                return prevState.module;
+            case "loading":
+                const listeners=prevState.listeners;
+                let succ: ((module:CompiledESModule)=>void)|null;
+                let module:CompiledESModule|null;
+                listeners.push( (m)=>succ?succ(m):(module=m) );
+                const pr:Promise<CompiledESModule>=
+                    new Promise((s)=>module?s(module):(succ=s));
+                if (context?.onwaitcompiled) await context.onwaitcompiled({entry:this});
+                return pr;
+            case "error":
+                throw prevState.error; 
+            case "init":
+                if (this.state.type!=="loading") throw new Error("Illegal state: "+this.state.type);
+        }
+        if (context?.oncompilestart) await context.oncompilestart({entry:this});
         const deps=[] as CompiledESModule[];
         const base=this.file.up();
         const urlConverter={
@@ -86,17 +151,21 @@ export class ESModuleEntry {
                     return aliases[path].url;
                 }
                 const e=ESModuleEntry.resolve(path,base);
-                const c=await e.compile();
+                const c=await e.compile(context);
                 deps.push(c);
                 return c.url;
             },
-            deps
+            deps,
         };
-        this.compiled=await convert(this, urlConverter);
-        compiledCache.add(this.compiled);
-        for (let f of this.compilationListeners) f(this.compiled);
-        delete this.compilationListeners;
-        return this.compiled;
+        let compiled;
+        try {
+            compiled=this.complete(await convert(this, urlConverter));
+        } catch (e) {
+            throw this.error(e as Error);
+        }
+        compiledCache.add(compiled);
+        if (context?.oncompiled) await context.oncompiled({module:compiled});
+        return compiled;
     }
     static fromFile(file:SFile):ESModuleEntry {
         const incache=entryCache.getByFile(file);
@@ -144,18 +213,18 @@ export class NodeModule {
                 }
             }
         }
-	let np=FS.getEnv("NODE_PATH");
-	if (np) {
-	    const nps=np.split(":");
-	    for(let nnp of nps) {
-	      let n=FS.get(nnp);
-	      if (n.exists()) {
-                 let p=n.rel(name+"/");
-                 if(p.exists()){
+        let np=FS.getEnv("NODE_PATH");
+        if (np) {
+            const nps=np.split(":");
+            for(let nnp of nps) {
+            let n=FS.get(nnp);
+            if (n.exists()) {
+                let p=n.rel(name+"/");
+                if(p.exists()){
                     return new NodeModule(p);
-                 }
-	      }
-	    }
+                }
+            }
+            }
         }
         throw new Error(`${name} not found from ${base}`);
     }
