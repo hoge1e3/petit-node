@@ -42,7 +42,7 @@ export class CompiledESModule {
     ){
     }
     shouldReload():boolean {
-        if (this.entry.shouldReload(true)) return true;
+        if (this.entry._shouldReload()) return true;
         return this.dependencies.some((dep)=>dep.shouldReload());
     }
     dispose(){
@@ -61,20 +61,13 @@ type CompileStartEvent={
 type CompilationContext={
     oncompilestart?:(e:CompileStartEvent)=>Promise<void>,
     oncompiled?:(e:CompiledEvent)=>Promise<void>,
-    oncachehit?:(e:CompiledEvent)=>Promise<void>,
-    onwaitcompiled:(e:CompileStartEvent)=>Promise<void>,
+    oncachehit?:(e:CompileStartEvent)=>Promise<void>,
 };
 type CompileState={
     type:"init"
 }| {
     type:"loading", 
     promise: MutablePromise<CompiledESModule>,
-}| {
-    type:"complete",
-    module: CompiledESModule,
-}| {
-    type:"error",
-    error: Error,
 };
 export class ESModuleEntry {
     state: CompileState={type:"init"};
@@ -84,18 +77,8 @@ export class ESModuleEntry {
         public timestamp: number,
         ) {
     }
-    shouldReload(ignoreCompiled=false):boolean {
-        if (this.file.lastUpdate()!==this.timestamp) return true;
-        if (!this.compiled || ignoreCompiled) return false;
-        return this.compiled.shouldReload();
-    }
-    dispose(){
-        if (!this.compiled) return; 
-        this.compiled.dispose();
-    }
-    get compiled(){
-        const state=this.state;
-        return state.type==="complete"&&state.module;
+    _shouldReload():boolean {
+        return this.file.lastUpdate()!==this.timestamp;
     }
     enter():CompileState {
         const prev=this.state;
@@ -109,29 +92,23 @@ export class ESModuleEntry {
                 return this.state;
         }
     }
-    complete(module: CompiledESModule) {
+    complete(compiled: CompiledESModule) {
         if (this.state.type!=="loading")throw new Error("Illegal state: "+this.state.type);
-        this.state.promise.resolve(module);
-        this.state={type:"complete",module};
-        return module;
+        this.state.promise.resolve(compiled);
+        compiledCache.add(compiled);
+        return compiled;
     }
     error(e:Error) {
         if (this.state.type!=="loading")throw new Error("Illegal state: "+this.state.type);
         this.state.promise.reject(e);
-        this.state={type:"error",error:e};
         return e;
     }
     async compile(context?:CompilationContext):Promise<CompiledESModule> {
         const prevState=this.enter();
         switch(prevState.type) {
-            case "complete":
-                if (context?.oncachehit) await context.oncachehit({module:prevState.module});
-                return prevState.module;
             case "loading":
-                if (context?.onwaitcompiled) await context.onwaitcompiled({entry:this});
+                if (context?.oncachehit) await context.oncachehit({entry:this});
                 return prevState.promise;
-            case "error":
-                throw prevState.error; 
             case "init":
                 if (this.state.type!=="loading") throw new Error("Illegal state: "+this.state.type);
         }
@@ -156,20 +133,25 @@ export class ESModuleEntry {
         } catch (e) {
             throw this.error(e as Error);
         }
-        compiledCache.add(compiled);
         if (context?.oncompiled) await context.oncompiled({module:compiled});
         return compiled;
     }
     static fromFile(file:SFile):ESModuleEntry {
         const incache=entryCache.getByFile(file);
-        if (incache && !incache.shouldReload()) return incache;
         if (incache) {
+            const compiled=compiledCache.getByFile(file);
+            if (compiled) {
+                if (!compiled.shouldReload()) return incache;
+                compiledCache.delete(compiled);
+                compiled.dispose();
+            } else {
+                if (!incache._shouldReload()) return incache;
+            }
             entryCache.delete(incache);
-            incache.dispose();
         }
-        const newMod=new ESModuleEntry(file, file.text(), file.lastUpdate());
-        entryCache.add(newMod);
-        return newMod;
+        const newEntry=new ESModuleEntry(file, file.text(), file.lastUpdate());
+        entryCache.add(newEntry);
+        return newEntry;
     }
     static resolve(path:string,base:SFile):ESModuleEntry{
         if(path.match(/^\./)){

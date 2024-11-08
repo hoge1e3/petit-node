@@ -122,15 +122,15 @@ export function resolveEntry(path: string|SFile ,base?:string|SFile):ESModuleEnt
 export async function importModule(path: SFile):Promise<ModuleValue>;
 export async function importModule(path: string, base: string|SFile):Promise<ModuleValue>;
 export async function importModule(path: string|SFile ,base?:string|SFile):Promise<ModuleValue>{
-    let mod;
+    let ent;
     if (base) {
         if (typeof path!=="string") throw invalidSpec();
-        mod=resolveEntry(path,base);
+        ent=resolveEntry(path,base);
     } else {
         if (typeof path==="string") throw invalidSpec();
-        mod=resolveEntry(path);
+        ent=resolveEntry(path);
     }
-    let u=(await mod.compile()).url;
+    let u=(await ent.compile()).url;
     return import(/* webpackIgnore: true */u);
 }
 export async function createModuleURL(f:SFile):Promise<string>{
