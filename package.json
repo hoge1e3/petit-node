@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "petit-node",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Subset of node.js running in browser",
   "main": "index.js",
   "scripts": {
@@ -29,7 +29,8 @@
     "@hoge1e3/events": "^1.0.0",
     "@hoge1e3/fs": "^1.0.3",
     "acorn-walk": "^8.3.2",
-    "espree": "^10.0.1"
+    "espree": "^10.0.1",
+    "mutable-promise": "^1.1.14"
   },
   "devDependencies": {
     "@eslint/js": "^9.1.1",

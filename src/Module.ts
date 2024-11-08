@@ -3,7 +3,7 @@ import {aliases } from "./alias";
 import { convert } from "./convImport";
 import FS from "@hoge1e3/fs";
 import { MultiIndexMap, Index } from "./MultiIndexMap";
-
+import MutablePromise from "mutable-promise";
 const node_modules="node_modules/";
 const package_json="package.json";
 class ESModuleEntryCache extends MultiIndexMap<ESModuleEntry> {
@@ -52,7 +52,6 @@ export class CompiledESModule {
     get sourceCode(){return this.entry.sourceCode;}
     get timestamp(){return this.entry.timestamp;}
 }
-type CompilationListener=(r:CompiledESModule)=>void;
 type CompiledEvent={
     module: CompiledESModule,
 };
@@ -69,7 +68,7 @@ type CompileState={
     type:"init"
 }| {
     type:"loading", 
-    listeners: CompilationListener[],
+    promise: MutablePromise<CompiledESModule>,
 }| {
     type:"complete",
     module: CompiledESModule,
@@ -78,8 +77,6 @@ type CompileState={
     error: Error,
 };
 export class ESModuleEntry {
-    //compiled: CompiledESModule|undefined;
-    //compilationListeners: CompilationListener[]|undefined;  
     state: CompileState={type:"init"};
     constructor(
         public file: SFile,
@@ -105,7 +102,7 @@ export class ESModuleEntry {
         switch (this.state.type) {
             case "init":
                 this.state={
-                    type:"loading", listeners:[],
+                    type:"loading", promise: new MutablePromise<CompiledESModule>(),
                 };
                 return prev;
             default:
@@ -114,11 +111,13 @@ export class ESModuleEntry {
     }
     complete(module: CompiledESModule) {
         if (this.state.type!=="loading")throw new Error("Illegal state: "+this.state.type);
-        for (let f of this.state.listeners) f(module);
+        this.state.promise.resolve(module);
         this.state={type:"complete",module};
         return module;
     }
     error(e:Error) {
+        if (this.state.type!=="loading")throw new Error("Illegal state: "+this.state.type);
+        this.state.promise.reject(e);
         this.state={type:"error",error:e};
         return e;
     }
@@ -129,14 +128,8 @@ export class ESModuleEntry {
                 if (context?.oncachehit) await context.oncachehit({module:prevState.module});
                 return prevState.module;
             case "loading":
-                const listeners=prevState.listeners;
-                let succ: ((module:CompiledESModule)=>void)|null;
-                let module:CompiledESModule|null;
-                listeners.push( (m)=>succ?succ(m):(module=m) );
-                const pr:Promise<CompiledESModule>=
-                    new Promise((s)=>module?s(module):(succ=s));
                 if (context?.onwaitcompiled) await context.onwaitcompiled({entry:this});
-                return pr;
+                return prevState.promise;
             case "error":
                 throw prevState.error; 
             case "init":
