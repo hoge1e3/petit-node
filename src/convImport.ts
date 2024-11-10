@@ -13,7 +13,7 @@ type URLConverter = {
 };
 type Replacement={
     range:number[],
-    to:Promise<string>,
+    to:string,
 };
 function spliceStr(str:string, 
     begin:number, end:number, 
@@ -36,27 +36,28 @@ export async function convert(entry: ESModuleEntry,urlConverter:URLConverter): P
   } catch (err) {
     throw err;
   }
-  const repls=[] as Replacement[];
+  const replPromises=[] as Promise<Replacement>[];
   const visitor = {
     ImportDeclaration(node: ImportDeclaration) {
       if (node.source) {
         const range=node.source.range||[0,0];
         const originalSource = node.source.value;
         const convertedSource = urlConverter.conv(originalSource as string);
-        repls.unshift({
-          to: convertedSource.then((s)=>JSON.stringify(s)),
-          range:range.slice()
-        });
-        //node.source.value = convertedSource;
+        replPromises.push(convertedSource.then((s:string)=>({
+          to: JSON.stringify(s),
+          range: range.slice()
+        })));
       }
     },
   };
   simple(ast, visitor);
-
   let conv2=sourceCode;
-  for(let {range,to} of repls){
-      conv2=spliceStr(conv2,range[0],range[1],await to);
-  }
+  await Promise.all(replPromises).then((repls)=>{
+    const sorted=repls.sort((a,b)=>b.range[0]-a.range[0])
+    for(let {range,to} of sorted){
+      conv2=spliceStr(conv2,range[0],range[1],to);
+    }
+  });
   const sourceURL=`//# sourceURL=file://${file.path()}`;
   const gensrc=`${conv2}
 ${sourceURL}
