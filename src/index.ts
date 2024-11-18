@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 
-import FS from "@hoge1e3/fs";
+import _FS from "@hoge1e3/fs";
 import { jsToBlobURL } from "./scriptTag";
 import { initModuleGlobal } from "./global";
 import {EventHandler} from "@hoge1e3/events";
@@ -10,6 +10,7 @@ import { CompiledESModule, ESModuleEntry, NodeModule, compiledCache as cache } f
 export { CompiledESModule, NodeModule } from "./Module";
 window.convert=convert;
 declare let window:any;
+export const FS=_FS;
 type Global={
     aliases: Aliases,
     //hooks: {[key: string]: (res:ModuleValue)=>void},
@@ -36,7 +37,7 @@ let pNode={
     CompiledESModule, ESModuleEntry, 
     ESModule: CompiledESModule, NodeModule, addAlias, addAliases,
     convertStack, loadedModules, urlToFile, events, on, urlToPath, 
-    thisUrl,
+    thisUrl, FS,
     default:{} as any,
 };
 export default pNode;
@@ -57,12 +58,7 @@ export async function boot(options:BootOptions={
     const ginf=await initModuleGlobal();
     gbl=ginf.value;
     gbl.aliases=aliasStore;
-    //gbl.hooks={};
     gbl_url=ginf.url;
-    /*if (!gbl || !gbl_url) {
-        console.log(ginf);
-        throw new Error("Module Global init error");
-    }*/
     const {aliases, init}=options;
     for (let k in builtInAliases) {
         addAlias(k, builtInAliases[k] as ModuleValue);
@@ -74,7 +70,7 @@ export async function boot(options:BootOptions={
         let path=await init({FS, pNode});
         if (!path) return;
         let file=(typeof path=="string"? FS.get(path): path as SFile);
-        await importModule(file);            
+        return await importModule(file);            
     }
 }
 export function addAliases(p:Aliases){

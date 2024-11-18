@@ -16,7 +16,7 @@ export function loadFixture(dir,fixture) {
 }
 export async function main(fixture,aliases){
     checkModuleExports(pNode);
-    await pNode.boot({
+    return await pNode.boot({
         async init({FS}){
             FS.mount("/node/",FS.LSFS.ramDisk());
             let node=FS.get("/node/");
@@ -39,4 +39,9 @@ function checkModuleExports(mod) {
         if (mod[k]!==mod.default[k]) errors.push("-"+k);//throw new Error("Attribute missing in non-default: "+k);
     }
     if (errors.length) throw new Error("Attribute missing +:default -:non-default  "+errors.join(", "));
+}
+export function prt(...args){
+    const content=document.createElement("div");
+    content.innerText=args.join(" ");
+    document.body.appendChild(content);
 }

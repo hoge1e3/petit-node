@@ -78,7 +78,7 @@ export class ESModuleEntry {
         ) {
     }
     _shouldReload():boolean {
-        return this.file.lastUpdate()!==this.timestamp;
+        return this.isError()||this.file.lastUpdate()!==this.timestamp;
     }
     enter():CompileState {
         const prev=this.state;
@@ -102,6 +102,9 @@ export class ESModuleEntry {
         if (this.state.type!=="loading")throw new Error("Illegal state: "+this.state.type);
         this.state.promise.reject(e);
         return e;
+    }
+    isError():boolean{
+        return this.state.type==="loading" && this.state.promise.isRejected;
     }
     async compile(context?:CompilationContext):Promise<CompiledESModule> {
         const prevState=this.enter();
