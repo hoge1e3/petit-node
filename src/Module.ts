@@ -123,6 +123,9 @@ export class ESModuleEntry {
                 if (aliases[path]) {
                     return aliases[path].url;
                 }
+                if (path.match(/^https?:/)) {
+                    return path;
+                }
                 const e=ESModuleEntry.resolve(path,base);
                 const c=await e.compile(context);
                 deps.push(c);

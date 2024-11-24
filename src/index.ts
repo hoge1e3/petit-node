@@ -8,8 +8,7 @@ import {convert} from "./convImport";
 import { aliases as aliasStore, Aliases,ModuleValue } from "./alias";
 import { CompiledESModule, ESModuleEntry, NodeModule, compiledCache as cache } from "./Module";
 export { CompiledESModule, NodeModule } from "./Module";
-window.convert=convert;
-declare let window:any;
+declare let globalThis:any;
 export const FS=_FS;
 type Global={
     aliases: Aliases,
@@ -147,7 +146,11 @@ function errorHandler(ee:ErrorEvent){
 export function convertStack<T extends string|Error>(stack:T):T {
     return stack as T;
 }
-window.addEventListener("error",errorHandler);
+try{
+    globalThis.convert=convert;
+    globalThis.addEventListener("error",errorHandler);
+} catch(e){
+}
 
 export function* loadedModules():Generator<CompiledESModule> {
     for(var entry of cache){
