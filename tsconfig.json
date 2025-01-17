@@ -12,6 +12,7 @@
       "moduleResolution": "node",
       // 厳密モードとして設定
       "strict": true,
-      "outDir":"./js"
+      "outDir":"./js",
+      "allowSyntheticDefaultImports":true
     }
   }

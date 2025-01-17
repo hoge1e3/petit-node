@@ -3,7 +3,7 @@ import * as espree from 'espree';
 //import { generate } from 'escodegen';
 import { simple } from "acorn-walk";
 //import { SourceMapGenerator } from "source-map";
-import { Content } from "@hoge1e3/fs";
+//import { Content } from "@hoge1e3/fs2";
 import { ESModuleEntry, CompiledESModule } from "./Module";
 
 

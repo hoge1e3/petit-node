@@ -3,7 +3,7 @@ export function loadFixture(dir,fixture) {
     for (let name in fixture) {
         const f=dir.rel(name);
         const val=fixture[name];
-        if (f.isDir()) {
+        if (f.isDirPath()) {
             loadFixture(f, val);
         } else {
             if (typeof val==="object") {

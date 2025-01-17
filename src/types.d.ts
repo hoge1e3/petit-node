@@ -27,7 +27,7 @@ declare class ContentFactory {
 declare type Content={
     toURL():string;
 }
-declare module "@hoge1e3/fs" {
+/*declare module "@hoge1e3/fs" {
     const def:{
         get:SFileGetter,
 	Content: ContentFactory,
@@ -38,3 +38,4 @@ declare module "@hoge1e3/fs" {
     export const Content:ContentFactory;
     export function getEnv(name:string):string|undefined;
 }
+*/

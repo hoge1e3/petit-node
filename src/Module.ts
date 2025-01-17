@@ -1,7 +1,7 @@
 //import { RawSourceMap, SourceMapConsumer } from "source-map";
 import {aliases } from "./alias";
 import { convert } from "./convImport";
-import FS from "@hoge1e3/fs";
+import * as FS from "@hoge1e3/fs2";
 import { MultiIndexMap, Index } from "./MultiIndexMap";
 import MutablePromise from "mutable-promise";
 const node_modules="node_modules/";

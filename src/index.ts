@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 
-import _FS from "@hoge1e3/fs";
+import * as _FS from "@hoge1e3/fs2";
 import { jsToBlobURL } from "./scriptTag";
 import { initModuleGlobal } from "./global";
 import {EventHandler} from "@hoge1e3/events";
@@ -8,8 +8,16 @@ import {convert} from "./convImport";
 import { aliases as aliasStore, Aliases,ModuleValue } from "./alias";
 import { CompiledESModule, ESModuleEntry, NodeModule, compiledCache as cache } from "./Module";
 export { CompiledESModule, NodeModule } from "./Module";
+import { gen as genfs } from "./fsgen";
 declare let globalThis:any;
-export const FS=_FS;
+function mod2obj<T extends object>(o:T):T&{default:T}{
+    const res={} as T;
+    for (let k in o) {
+        res[k]=o[k];
+    }
+    return {...res, default:res};
+}
+export const FS=mod2obj(_FS);
 type Global={
     aliases: Aliases,
     //hooks: {[key: string]: (res:ModuleValue)=>void},
@@ -44,6 +52,12 @@ pNode.default=pNode;
 let builtInAliases:{[key:string]:ModuleValue}={
     "petit-node": pNode,
     "@hoge1e3/fs": FS,
+    "@hoge1e3/fs2": FS,
+    "node:fs": genfs(FS.nodePolyfill.fs),
+    "fs": genfs(FS.nodePolyfill.fs),
+    "os": FS.nodePolyfill.os,
+    "path": FS.nodePolyfill.path,
+    "process": FS.nodePolyfill.process,
 };
 type Initializer=(p:{FS:typeof FS, pNode: typeof pNode })=>Promise<any>;
 
