@@ -1,4 +1,4 @@
-declare type SFile ={
+/*declare type SFile ={
     lastUpdate(): number;
     text(): string,
     up(): SFile,
@@ -10,7 +10,7 @@ declare type SFile ={
     name(): string,
     obj(): Object,
     getBlob(): Blob,
-};
+};*/
 type Remover={
     remove:Function,
 };
@@ -20,7 +20,7 @@ declare module "@hoge1e3/events" {
         fire(type:string, arg:any):void;
     }
 }
-declare type SFileGetter = (path:string)=> SFile;
+//declare type SFileGetter = (path:string)=> SFile;
 declare class ContentFactory {
     plainText(text:string, contentType?:string):Content;
 }

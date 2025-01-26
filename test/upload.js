@@ -14,7 +14,7 @@ async function unzipBlob(blob, dest) {
     let zip=FS.get("/tmp/setup.zip");
     await zip.setBlob(blob);
     dest.mkdir();
-    await FS.zip.unzip(zip,dest);
+    await FS.zip.unzip(zip,dest,{v:true});
 }
 function initCss(){
     const style = document.createElement('style');
@@ -60,7 +60,7 @@ function init(){
                 convertStack:pNode.convertStack,
                 loadScriptTag,
             };
-            FS.mount("/tmp/",FS.LSFS.ramDisk());
+            FS.mount("/tmp/","ram");
             afterInit(o);
         }
     });
@@ -203,6 +203,10 @@ function insertBootDisk() {
         const run=FS.get("/tmp/run/");
         await unzipBlob(this.files[0],run);
         rmbtn();
+        /*const e=pNode.resolveEntry(run);
+        e.compile(handlers);
+        await timeout(1000);
+        //pNode.resolveEntry()*/
         pNode.importModule(run);
     });
 }

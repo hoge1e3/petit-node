@@ -2,6 +2,7 @@
 import {aliases } from "./alias";
 import { convert } from "./convImport";
 import * as FS from "@hoge1e3/fs2";
+type SFile=FS.SFile;
 import { MultiIndexMap, Index } from "./MultiIndexMap";
 import MutablePromise from "mutable-promise";
 const node_modules="node_modules/";
@@ -118,6 +119,7 @@ export class ESModuleEntry {
         if (context?.oncompilestart) await context.oncompilestart({entry:this});
         const deps=[] as CompiledESModule[];
         const base=this.file.up();
+        if (!base) throw new Error(this.file+" cannot create base.");
         const urlConverter={
             conv: async(path:string):Promise<string>=>{
                 if (aliases[path]) {
@@ -185,7 +187,7 @@ export class NodeModule {
         return this.packageJsonFile().obj() as PackageJson;
     }
     static resolve(name:string,base:SFile):NodeModule {
-        for(let p=base;p;p=p.up()){
+        for(let p:SFile|null=base;p;p=p.up()){
             let n=p.rel(node_modules);
             if(n.exists()){
                 let p=n.rel(name+"/");

@@ -6,7 +6,7 @@ The system is developed to implement [acepad](https://hoge1e3.github.io/acepad/)
 ## Example
 
 ```js
-import pNode from "https://esm.sh/petit-node@1.0.5/dist/index.js";
+import pNode from "https://esm.sh/petit-node@latest/dist/index.js";
 pNode.boot({
    init({FS}) {
        // get file object via FS object
@@ -33,12 +33,13 @@ pNode.boot({
 
 - pNode.boot(options)
    - Initialize petit-node
-   - options
+   - `options` can include following attributes:
       - `init` A function called on boot, the argument object has `FS` object in [@hoge1e3/fs](https://www.npmjs.com/package/@hoge1e3/fs). If the return value is file object, petit-node imports the file.
-   - aliases
-      - Specifies object the configures aliases.
-      - The key is module path (that specifies after import)
-      - The value is the module object which is imported
+      - `aliases`
+         - Specifies object that configures aliases.
+         - The key is module path (that specifies after import)
+         - The value is the module object which is imported
+         - This allows use `import * as value from "key"` from programs in vitual file system.
 - pNode.importModule(f)
    - import module from vitrual file system
    - `f` is a file object of [@hoge1e3/fs](https://www.npmjs.com/package/@hoge1e3/fs)
@@ -46,10 +47,10 @@ pNode.boot({
 
 ## How does it works?
 
-Each javascript source files in virtual file system is converted to BlobURL. If the file contains import ... from `filepath`, the depending files are also converted to BlobURL recursively. 
+Each javascript source files in virtual file system is converted to BlobURL. If the file contains `import ... from 'filepath'`, the depending files are also converted to BlobURL recursively. 
 
 ## Virtual file system
 
-- In browser(DOM) context, The virtual file system uses localStorage to store files. `/tmp` is mounted as RAM disk, the content is cleared on reload.
+- In browser(DOM) context, The virtual file system uses localStorage to store files. `/tmp` is mounted as a RAM disk, the content is cleared on reload.
 - In Worker context, The entire file system is mouted as RAM disk.
 - See [@hoge1e3/fs](https://www.npmjs.com/package/@hoge1e3/fs) for details of file system API

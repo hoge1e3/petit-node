@@ -9,6 +9,7 @@ import { aliases as aliasStore, Aliases,ModuleValue } from "./alias";
 import { CompiledESModule, ESModuleEntry, NodeModule, compiledCache as cache } from "./Module";
 export { CompiledESModule, NodeModule } from "./Module";
 import { gen as genfs } from "./fsgen";
+type SFile=_FS.SFile;
 declare let globalThis:any;
 function mod2obj<T extends object>(o:T):T&{default:T}{
     const res={} as T;

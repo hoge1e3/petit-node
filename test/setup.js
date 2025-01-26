@@ -18,7 +18,7 @@ export async function main(fixture,aliases){
     checkModuleExports(pNode);
     return await pNode.boot({
         async init({FS}){
-            FS.mount("/node/",FS.LSFS.ramDisk());
+            FS.mount("/node/","ram");
             let node=FS.get("/node/");
             loadFixture(node, fixture);
             if (aliases) {
