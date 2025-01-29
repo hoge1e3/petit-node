@@ -9,6 +9,8 @@ import { aliases as aliasStore, Aliases,ModuleValue } from "./alias";
 import { CompiledESModule, ESModuleEntry, NodeModule, compiledCache as cache } from "./Module";
 export { CompiledESModule, NodeModule } from "./Module";
 import { gen as genfs } from "./fsgen";
+import * as espree from 'espree';
+
 type SFile=_FS.SFile;
 declare let globalThis:any;
 function mod2obj<T extends object>(o:T):T&{default:T}{
@@ -59,6 +61,8 @@ let builtInAliases:{[key:string]:ModuleValue}={
     "os": FS.nodePolyfill.os,
     "path": FS.nodePolyfill.path,
     "process": FS.nodePolyfill.process,
+    "jszip": FS.JSZip,
+    "espree": espree,
 };
 type Initializer=(p:{FS:typeof FS, pNode: typeof pNode })=>Promise<any>;
 
