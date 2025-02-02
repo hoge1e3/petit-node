@@ -1,15 +1,16 @@
 /* eslint-disable no-unused-vars */
 
 import * as _FS from "@hoge1e3/fs2";
-import { jsToBlobURL } from "./scriptTag";
-import { initModuleGlobal } from "./global";
 import {EventHandler} from "@hoge1e3/events";
 import {convert} from "./convImport";
-import { aliases as aliasStore, Aliases,ModuleValue } from "./alias";
+import { /*liases as aliasStore,*/ initModuleGlobal, addAlias, addAliases } from "./alias";
 import { CompiledESModule, ESModuleEntry, NodeModule, compiledCache as cache } from "./Module";
 export { CompiledESModule, NodeModule } from "./Module";
 import { gen as genfs } from "./fsgen";
 import * as espree from 'espree';
+import * as chai from "chai";
+import * as sfile from "@hoge1e3/sfile";
+import { Aliases, ModuleValue } from "./types";
 
 type SFile=_FS.SFile;
 declare let globalThis:any;
@@ -21,11 +22,6 @@ function mod2obj<T extends object>(o:T):T&{default:T}{
     return {...res, default:res};
 }
 export const FS=mod2obj(_FS);
-type Global={
-    aliases: Aliases,
-    //hooks: {[key: string]: (res:ModuleValue)=>void},
-    //rawImport:(url:string)=>Promise<ModuleValue>,
-};
 type CreateScriptURLOption={
     deps:SFile[]|undefined,
 };
@@ -36,8 +32,7 @@ type CreateURLOption=CreateScriptURLOption&{
     url: string, path:string, lastUpdate:number,
     deps: SFile[],
 }*/
-let gbl:Global;
-let gbl_url:string;
+
 const thisUrl=()=>(
     new URL(import.meta.url));
 export let events=new EventHandler();
@@ -56,14 +51,22 @@ let builtInAliases:{[key:string]:ModuleValue}={
     "petit-node": pNode,
     "@hoge1e3/fs": FS,
     "@hoge1e3/fs2": FS,
-    "node:fs": genfs(FS.nodePolyfill.fs),
-    "fs": genfs(FS.nodePolyfill.fs),
-    "os": FS.nodePolyfill.os,
-    "path": FS.nodePolyfill.path,
-    "process": FS.nodePolyfill.process,
+    "@hoge1e3/sfile": sfile,
+    fs: genfs(FS.nodePolyfill.fs),
+    os: FS.nodePolyfill.os,
+    path: FS.nodePolyfill.path,
+    process: FS.nodePolyfill.process,
+    assert: chai.assert,
+    chai,
     "jszip": FS.JSZip,
-    "espree": espree,
+    espree,
 };
+function dupNodePrefix(keys:string[]){
+    for (let k of keys) {
+        builtInAliases[`node:${k}`]=builtInAliases[k];
+    }
+}
+dupNodePrefix(["fs","os","path","process","assert"]);
 type Initializer=(p:{FS:typeof FS, pNode: typeof pNode })=>Promise<any>;
 
 type BootOptions={
@@ -73,10 +76,7 @@ type BootOptions={
 export async function boot(options:BootOptions={
     aliases:undefined, init: undefined,
 }) {
-    const ginf=await initModuleGlobal();
-    gbl=ginf.value;
-    gbl.aliases=aliasStore;
-    gbl_url=ginf.url;
+    await initModuleGlobal();
     const {aliases, init}=options;
     for (let k in builtInAliases) {
         addAlias(k, builtInAliases[k] as ModuleValue);
@@ -90,27 +90,6 @@ export async function boot(options:BootOptions={
         let file=(typeof path=="string"? FS.get(path): path as SFile);
         return await importModule(file);            
     }
-}
-export function addAliases(p:Aliases){
-    for (let k in p) {
-        addAlias(k, p[k]);
-    }
-}
-export function addAlias(name:string, value:ModuleValue) {
-    const jsCodeString=`
-import gbl from "${gbl_url}";
-let p=gbl.aliases["${name}"].value;
-${Object.keys(value as any).map((key)=>
-    key=="default"?
-`export default p.default;`:
-`export let ${key}=p.${key};`
-    ).join("\n")}
-`;
-    let blobUrl = jsToBlobURL(jsCodeString);
-    gbl.aliases[name]={
-        url:blobUrl,
-        value,
-    };
 }
 const invalidSpec=()=>new Error("Invalid argument: either (file) or (str,file)");
 export function resolveEntry(path: SFile):ESModuleEntry;

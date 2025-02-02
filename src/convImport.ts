@@ -1,7 +1,7 @@
-import type {ImportDeclaration} from "acorn";
+import type {ExportAllDeclaration, ExportDefaultDeclaration, ExportNamedDeclaration, ImportDeclaration, Literal} from "acorn";
 import * as espree from 'espree';
 //import { generate } from 'escodegen';
-import { simple } from "acorn-walk";
+import { simple, SimpleVisitors } from "acorn-walk";
 //import { SourceMapGenerator } from "source-map";
 //import { Content } from "@hoge1e3/fs2";
 import { ESModuleEntry, CompiledESModule } from "./Module";
@@ -40,19 +40,26 @@ export async function convert(entry: ESModuleEntry,urlConverter:URLConverter): P
     throw e;
   }
   const replPromises=[] as Promise<Replacement>[];
-  const visitor = {
-    ImportDeclaration(node: ImportDeclaration) {
-      if (node.source) {
-        const range=node.source.range||[0,0];
-        const originalSource = node.source.value;
-        const convertedSource = urlConverter.conv(originalSource as string);
-        replPromises.push(convertedSource.then((s:string)=>({
-          to: JSON.stringify(s),
-          range: range.slice()
-        })));
-      }
-    },
+  const convLiteral=(source: Literal)=>{
+    const range=source.range||[0,0];
+    const originalSource = source.value;
+    const convertedSource = urlConverter.conv(originalSource as string);
+    replPromises.push(convertedSource.then((s:string)=>({
+      to: JSON.stringify(s),
+      range: range.slice()
+    })));
   };
+  const visitor = {
+    ExportAllDeclaration(node: ExportAllDeclaration) {
+      if (node.source) convLiteral(node.source);
+    },
+    ExportNamedDeclaration(node: ExportNamedDeclaration) {
+      if (node.source) convLiteral(node.source);
+    },
+    ImportDeclaration(node: ImportDeclaration) {
+      if (node.source) convLiteral(node.source);
+    },
+  } as SimpleVisitors<unknown>;
   simple(ast, visitor);
   let conv2=sourceCode;
   await Promise.all(replPromises).then((repls)=>{

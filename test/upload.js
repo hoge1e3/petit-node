@@ -133,7 +133,10 @@ function btn(c,a,auto){
         try {
             abortAuto();
             await a();
-        }catch(e){alert(e);}
+        }catch(e){
+            console.error(e);
+            alert(e.stack||e);
+        }
     };
     b.addEventListener("click", act);	    
     if(auto){

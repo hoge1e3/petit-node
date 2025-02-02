@@ -1,10 +1,11 @@
 //import { RawSourceMap, SourceMapConsumer } from "source-map";
-import {aliases } from "./alias";
+import {getAliases } from "./alias";
 import { convert } from "./convImport";
 import * as FS from "@hoge1e3/fs2";
 type SFile=FS.SFile;
 import { MultiIndexMap, Index } from "./MultiIndexMap";
 import MutablePromise from "mutable-promise";
+import { Aliases } from "./types";
 const node_modules="node_modules/";
 const package_json="package.json";
 class ESModuleEntryCache extends MultiIndexMap<ESModuleEntry> {
@@ -60,6 +61,7 @@ type CompileStartEvent={
     entry: ESModuleEntry,
 };
 type CompilationContext={
+    aliases: Aliases,
     oncompilestart?:(e:CompileStartEvent)=>Promise<void>,
     oncompiled?:(e:CompiledEvent)=>Promise<void>,
     oncachehit?:(e:CompileStartEvent)=>Promise<void>,
@@ -109,6 +111,7 @@ export class ESModuleEntry {
     }
     async compile(context?:CompilationContext):Promise<CompiledESModule> {
         const prevState=this.enter();
+        const aliases=getAliases();
         switch(prevState.type) {
             case "loading":
                 if (context?.oncachehit) await context.oncachehit({entry:this});
