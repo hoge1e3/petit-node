@@ -9,6 +9,8 @@ export { CompiledESModule, NodeModule } from "./Module";
 import { gen as genfs } from "./fsgen";
 import * as espree from 'espree';
 import * as chai from "chai";
+import * as assert from "@hoge1e3/assert";// Replace with assert polyfill, chai.assert is slow.
+import * as util from "@hoge1e3/util";
 import * as sfile from "@hoge1e3/sfile";
 import { Aliases, ModuleValue } from "./types";
 
@@ -56,17 +58,19 @@ let builtInAliases:{[key:string]:ModuleValue}={
     os: FS.nodePolyfill.os,
     path: FS.nodePolyfill.path,
     process: FS.nodePolyfill.process,
-    assert: chai.assert,
+    assert,
+    util,
     chai,
     "jszip": FS.JSZip,
     espree,
 };
+//globalThis.process=FS.nodePolyfill.process;
 function dupNodePrefix(keys:string[]){
     for (let k of keys) {
         builtInAliases[`node:${k}`]=builtInAliases[k];
     }
 }
-dupNodePrefix(["fs","os","path","process","assert"]);
+dupNodePrefix(["fs","os","path","process","assert","util"]);
 type Initializer=(p:{FS:typeof FS, pNode: typeof pNode })=>Promise<any>;
 
 type BootOptions={

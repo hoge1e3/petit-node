@@ -1,11 +1,11 @@
 {
   "type": "module",
   "name": "petit-node",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "Subset of node.js running in browser",
   "main": "dist/index.js",
   "scripts": {
-    "link": "npm link @hoge1e3/fs2 @hoge1e3/sfile petit-fs",
+    "link": "npm link @hoge1e3/fs2 @hoge1e3/sfile petit-fs @hoge1e3/assert @hoge1e3/util",
     "build-dev": "npx webpack --mode=development",
     "build": "npx webpack --mode=production",
     "test": "npx http-server -o test/index.html"
@@ -27,6 +27,7 @@
   },
   "homepage": "https://github.com/hoge1e3/petit-node#readme",
   "dependencies": {
+    "@hoge1e3/assert": "^2.1.1",
     "@hoge1e3/events": "^1.0.0",
     "@hoge1e3/fs2": "^1.0.2",
     "@hoge1e3/sfile": "^1.1.3",
