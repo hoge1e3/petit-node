@@ -35,6 +35,41 @@ export const compiledCache=new CompiledESModuleCache();
 type PackageJson={
     main:string,
 }
+class DependencyChecker {
+    private dependencies: Map<string, Set<string>> = new Map();
+    add(dependent: string, dependency: string): void {
+        //console.log(dependent, dependency, this.dependencies)
+        if (dependent === dependency) {
+            throw new Error(`Self-dependency detected: ${dependent} depends on itself.`);
+        }
+        if (!this.dependencies.has(dependent)) {
+            this.dependencies.set(dependent, new Set());
+        }
+        if (!this.dependencies.has(dependency)) {
+            this.dependencies.set(dependency, new Set());
+        }
+        const circularPath = this.hasCircularDependency([dependent ,dependency]);
+        if (circularPath) {
+            throw new Error(`Circular dependency detected: ${circularPath.join(" -> ")}`);
+        }
+        this.dependencies.get(dependent)!.add(dependency);
+    }
+    private hasCircularDependency(path: string[]): string[] | undefined {
+        const start: string=path[0], current: string=path[path.length - 1];
+        if (current === start) {
+            return path; // Circular path found
+        }
+        if (!this.dependencies.has(current)) {
+            return undefined;
+        }
+        for (const next of this.dependencies.get(current)!) {
+            if (path.includes(next)) return [...path, next]; // Avoid revisiting nodes in the current path
+            const newPath = this.hasCircularDependency([...path, next]);
+            if (newPath) return newPath;
+        }
+        return undefined;
+    }
+}
 export class CompiledESModule {
     constructor(
         public entry: ESModuleEntry,
@@ -62,6 +97,7 @@ type CompileStartEvent={
 };
 type CompilationContext={
     aliases: Aliases,
+    depChecker: DependencyChecker,
     oncompilestart?:(e:CompileStartEvent)=>Promise<void>,
     oncompiled?:(e:CompiledEvent)=>Promise<void>,
     oncachehit?:(e:CompileStartEvent)=>Promise<void>,
@@ -109,17 +145,25 @@ export class ESModuleEntry {
     isError():boolean{
         return this.state.type==="loading" && this.state.promise.isRejected;
     }
-    async compile(context?:CompilationContext):Promise<CompiledESModule> {
+    async compile(_context:Partial<CompilationContext>={}):Promise<CompiledESModule> {
+        const context:CompilationContext={
+            aliases:getAliases(),
+            depChecker:new DependencyChecker(),
+        };
+        Object.assign(context, _context);
+        return await this.compileWith(context);
+    }
+    async compileWith(context:CompilationContext):Promise<CompiledESModule> {
         const prevState=this.enter();
-        const aliases=getAliases();
+        const aliases=context.aliases;//getAliases();
         switch(prevState.type) {
             case "loading":
-                if (context?.oncachehit) await context.oncachehit({entry:this});
+                if (context.oncachehit) await context.oncachehit({entry:this});
                 return prevState.promise;
             case "init":
                 if (this.state.type!=="loading") throw new Error("Illegal state: "+this.state.type);
         }
-        if (context?.oncompilestart) await context.oncompilestart({entry:this});
+        if (context.oncompilestart) await context.oncompilestart({entry:this});
         const deps=[] as CompiledESModule[];
         const base=this.file.up();
         if (!base) throw new Error(this.file+" cannot create base.");
@@ -132,7 +176,8 @@ export class ESModuleEntry {
                     return path;
                 }
                 const e=ESModuleEntry.resolve(path,base);
-                const c=await e.compile(context);
+                context.depChecker.add(this.file.path(), e.file.path());
+                const c=await e.compileWith(context);
                 deps.push(c);
                 return c.url;
             },

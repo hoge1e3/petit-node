@@ -40,7 +40,8 @@ const thisUrl=()=>(
 export let events=new EventHandler();
 export let on=events.on.bind(events);
 let pNode={
-    boot, importModule, createModuleURL, resolveEntry, 
+    boot, importModule, import: importModule, 
+    createModuleURL, resolveEntry, 
     CompiledESModule, ESModuleEntry, 
     ESModule: CompiledESModule, NodeModule, addAlias, addAliases,
     convertStack, loadedModules, urlToFile, events, on, urlToPath, 
