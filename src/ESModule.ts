@@ -6,8 +6,8 @@ type SFile=FS.SFile;
 import { MultiIndexMap, Index } from "./MultiIndexMap";
 import MutablePromise from "mutable-promise";
 import { Aliases } from "./types";
-const node_modules="node_modules/";
-const package_json="package.json";
+import { NodeModule } from "./NodeModule";
+
 class ESModuleEntryCache extends MultiIndexMap<ESModuleEntry> {
     byPath: Index<string, ESModuleEntry>;
     constructor() {
@@ -32,9 +32,7 @@ class CompiledESModuleCache extends MultiIndexMap<CompiledESModule> {
 }
 export const entryCache=new ESModuleEntryCache();
 export const compiledCache=new CompiledESModuleCache();
-type PackageJson={
-    main:string,
-}
+
 class DependencyChecker {
     private dependencies: Map<string, Set<string>> = new Map();
     add(dependent: string, dependency: string): void {
@@ -215,49 +213,10 @@ export class ESModuleEntry {
         }else if(path.match(/^\//)){
             return this.fromFile(FS.get(path));
         }else {
-            return NodeModule.resolve(path,base).getMain();
+            return this.fromNodeModule(NodeModule.resolve(path,base));
         }
+    }
+    static fromNodeModule(m:NodeModule):ESModuleEntry {
+        return ESModuleEntry.fromFile(m.getMain());
     }
 }
-export class NodeModule {
-    constructor(
-        public dir:SFile,
-    ){}
-    getMain():ESModuleEntry{
-        const p=this.packageJsonFile();
-        let o=this.packageJson();
-        return ESModuleEntry.fromFile(p.sibling(o.main));
-    }
-    packageJsonFile():SFile {
-        return this.dir.rel(package_json);
-    }
-    packageJson():PackageJson {
-        return this.packageJsonFile().obj() as PackageJson;
-    }
-    static resolve(name:string,base:SFile):NodeModule {
-        for(let p:SFile|null=base;p;p=p.up()){
-            let n=p.rel(node_modules);
-            if(n.exists()){
-                let p=n.rel(name+"/");
-                if(p.exists()){
-                    return new NodeModule(p);
-                }
-            }
-        }
-        let np=FS.getEnv("NODE_PATH");
-        if (np) {
-            const nps=np.split(":");
-            for(let nnp of nps) {
-            let n=FS.get(nnp);
-            if (n.exists()) {
-                let p=n.rel(name+"/");
-                if(p.exists()){
-                    return new NodeModule(p);
-                }
-            }
-            }
-        }
-        throw new Error(`${name} not found from ${base}`);
-    }
-}
-
