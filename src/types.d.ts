@@ -16,6 +16,7 @@ export type GlobalInfo={
     url: string,
 };
 export type Alias={
+    path: string,
     url: string,
     value: ModuleValue,
 };

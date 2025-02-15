@@ -129,8 +129,22 @@ class CJSCompiler {
 export function require(path:string):ModuleValue;
 export function require(file:SFile):ModuleValue;
 export function require(path:string, base:SFile):ModuleValue;
-export function require(porf:string|SFile, base?:SFile):ModuleValue {
+export function require(path:string, base:string):ModuleValue;
+export function require(porf:string|SFile, base?:SFile|string):ModuleValue {
     const path=(typeof porf==="string"? porf: porf.path());
-    base=base||FS.get(path).up()!;
-    return CJSEntry.resolve(path,base).compile().exports;
+    let fbase:SFile;
+    if (!base) {
+        if (!path.startsWith("/")) {
+            throw new Error("Path must be absolute");
+        }
+        fbase=FS.get(path).up()!; 
+    } else if (typeof base=="string") {
+        if (!base.startsWith("/")) {
+            throw new Error("Base must be absolute");
+        }
+        fbase=FS.get(base);        
+    } else {
+        fbase=base;
+    }
+    return CJSEntry.resolve(path,fbase).compile().exports;
 }

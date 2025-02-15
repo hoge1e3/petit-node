@@ -5,9 +5,16 @@ import * as FS from "@hoge1e3/fs2";
 type SFile=FS.SFile;
 import { MultiIndexMap, Index } from "./MultiIndexMap";
 import MutablePromise from "mutable-promise";
-import { Aliases } from "./types";
+import { Alias, Aliases } from "./types";
 import { NodeModule } from "./NodeModule";
-
+export type ESModule=Alias|CompiledESModule;
+export function isAlias(e:ESModule): e is Alias {
+    return !(e instanceof CompiledESModule);
+}
+export function getPath(e:ESModule) {
+    if (isAlias(e)){return e.path;}
+    else {return e.entry.file.path();}
+}
 class ESModuleEntryCache extends MultiIndexMap<ESModuleEntry> {
     byPath: Index<string, ESModuleEntry>;
     constructor() {
@@ -18,20 +25,20 @@ class ESModuleEntryCache extends MultiIndexMap<ESModuleEntry> {
         return this.byPath.get(f.path());
     }
 }
-class CompiledESModuleCache extends MultiIndexMap<CompiledESModule> {
-    byURL: Index<string, CompiledESModule>;
-    byPath: Index<string, CompiledESModule>;
+class ESModuleCache extends MultiIndexMap<ESModule> {
+    byURL: Index<string, ESModule>;
+    byPath: Index<string, ESModule>;
     constructor() {
         super();
         this.byURL=this.newIndex((item)=>item.url);
-        this.byPath=this.newIndex((item)=>item.file.path());        
+        this.byPath=this.newIndex((item)=>getPath(item));        
     }
     getByFile(f:SFile) {
         return this.byPath.get(f.path());
     }
 }
 export const entryCache=new ESModuleEntryCache();
-export const compiledCache=new CompiledESModuleCache();
+export const cache=new ESModuleCache();
 
 class DependencyChecker {
     private dependencies: Map<string, Set<string>> = new Map();
@@ -132,7 +139,7 @@ export class ESModuleEntry {
     complete(compiled: CompiledESModule) {
         if (this.state.type!=="loading")throw new Error("Illegal state: "+this.state.type);
         this.state.promise.resolve(compiled);
-        compiledCache.add(compiled);
+        cache.add(compiled);
         return compiled;
     }
     error(e:Error) {
@@ -193,10 +200,10 @@ export class ESModuleEntry {
     static fromFile(file:SFile):ESModuleEntry {
         const incache=entryCache.getByFile(file);
         if (incache) {
-            const compiled=compiledCache.getByFile(file);
-            if (compiled) {
+            const compiled=cache.getByFile(file);
+            if (compiled && !isAlias(compiled)) {
                 if (!compiled.shouldReload()) return incache;
-                compiledCache.delete(compiled);
+                cache.delete(compiled);
                 compiled.dispose();
             } else {
                 if (!incache._shouldReload()) return incache;
@@ -219,4 +226,31 @@ export class ESModuleEntry {
     static fromNodeModule(m:NodeModule):ESModuleEntry {
         return ESModuleEntry.fromFile(m.getMain());
     }
+}
+export function traceInvalidImport(original:Error, start:CompiledESModule) {
+    let targetURL:string|null=null;
+    for (let e of cache) {
+        const idx=original.message.indexOf(e.url);
+        if (idx>=0) {
+            targetURL=e.url;
+            original.message=original.message.substring(0,idx)+
+                getPath(e)+
+                original.message.substring(idx+e.url.length);
+            break;
+        }
+    }
+    if (!targetURL) return original;
+    const candidates=[] as CompiledESModule[];
+    function findFrom(start:CompiledESModule) {
+        for (let d of start.dependencies) {
+            if (d.url==targetURL) {
+                candidates.push(start);
+                return;
+            }
+            if (!isAlias(d)) findFrom(d);
+        }
+    }
+    findFrom(start);
+    if (candidates.length==0) return null;
+    return new Error(original.message+"\n"+"Check these dependents:\n"+candidates.map((c)=>c.entry.file.path()).join("\n"));
 }

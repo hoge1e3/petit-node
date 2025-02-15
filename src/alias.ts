@@ -31,14 +31,14 @@ function uniqueName(avoidThem:string[]){
     } while(avoidThem.includes(theName));
     return theName;
 }
-export function addAlias(name:string, value:ModuleValue) {
+export function addAlias(path:string, value:ModuleValue) {
     const ginf=getGlobalInfo();
     const keys=Object.keys(value as any);
     const ginfName=uniqueName(keys);
     const valueName=uniqueName([...keys,ginfName]);
     const jsCodeString=`
 import ${ginfName} from "${ginf.url}";
-let ${valueName}=${ginfName}.aliases["${name}"].value;
+let ${valueName}=${ginfName}.aliases["${path}"].value;
 ${keys.map((key)=>
     key=="default"?
 `export default ${valueName}.default;`:
@@ -46,7 +46,8 @@ ${keys.map((key)=>
     ).join("\n")}
 `;
     let blobUrl = jsToBlobURL(jsCodeString);
-    ginf.value.aliases[name]={
+    ginf.value.aliases[path]={
+        path,
         url:blobUrl,
         value,
     };

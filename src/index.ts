@@ -4,7 +4,7 @@ import * as _FS from "@hoge1e3/fs2";
 import {EventHandler} from "@hoge1e3/events";
 import {convert} from "./convImport";
 import { /*liases as aliasStore,*/ initModuleGlobal, addAlias, addAliases } from "./alias";
-import { CompiledESModule, ESModuleEntry, compiledCache as cache } from "./ESModule";
+import { CompiledESModule, ESModule, ESModuleEntry, cache as cache, getPath, isAlias, traceInvalidImport } from "./ESModule";
 export { CompiledESModule} from "./ESModule";
 import { NodeModule } from "./NodeModule";
 export { NodeModule } from "./NodeModule";
@@ -132,8 +132,17 @@ export async function importModule(path: string|SFile ,base?:string|SFile):Promi
         if (typeof path==="string") throw invalidSpec();
         ent=resolveEntry(path);
     }
-    let u=(await ent.compile()).url;
-    return import(/* webpackIgnore: true */u);
+    const compiled=await ent.compile();
+    let u=compiled.url;
+    try {
+        return await import(/* webpackIgnore: true */u);
+    } catch(err) {
+        const e=err as unknown as Error;
+        if (e.message.match(/blob:/)) {
+            throw traceInvalidImport(e, compiled);
+        }
+        throw err;
+    }
 }
 export async function createModuleURL(f:SFile):Promise<string>{
     return (await ESModuleEntry.fromFile(f).compile()).url;
@@ -159,7 +168,7 @@ try{
 } catch(e){
 }
 
-export function* loadedModules():Generator<CompiledESModule> {
+export function* loadedModules():Generator<ESModule> {
     for(var entry of cache){
         yield entry;
     }
@@ -167,10 +176,11 @@ export function* loadedModules():Generator<CompiledESModule> {
 export function urlToPath(url:string):string {
     let ent=cache.byURL.get(url);
     if (!ent) return url;
-    return ent.file.path();
+    return getPath(ent);
 }
 export function urlToFile(url:string):SFile {
     let ent=cache.byURL.get(url);
-    if (!ent) throw new Error("`${url} is not loaded.`");
+    if (!ent) throw new Error(`${url} is not loaded.`);
+    if (isAlias(ent)) throw new Error(`${url} is an Alias(${getPath(ent)}) that is not associated to a file.`);
     return ent.file;
 }

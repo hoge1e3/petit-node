@@ -34,9 +34,10 @@ export async function convert(entry: ESModuleEntry,urlConverter:URLConverter): P
       ecmaVersion: 2024,
     });
   } catch (err) {
-    const e=err as any;
+    const original=err as any;
+    const e=new Error("At "+file.path()+":"+original.lineNumber+":"+original.column+" "+original.message) as any;
+    e.original=original;
     e.file=file;
-    e.message="At "+file.path()+":"+e.lineNumber+":"+e.column+" "+e.message;
     throw e;
   }
   const replPromises=[] as Promise<Replacement>[];
