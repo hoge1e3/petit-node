@@ -4,7 +4,7 @@ import * as _FS from "@hoge1e3/fs2";
 import {EventHandler} from "@hoge1e3/events";
 import {convert} from "./convImport";
 import { /*liases as aliasStore,*/ initModuleGlobal, addAlias, addAliases } from "./alias";
-import { CompiledESModule, ESModule, ESModuleEntry, cache as cache, getPath, isAlias, traceInvalidImport } from "./ESModule";
+import { CompiledESModule, ESModule, ESModuleCompiler, ESModuleEntry, cache as cache, getPath, isAlias, traceInvalidImport } from "./ESModule";
 export { CompiledESModule} from "./ESModule";
 import { NodeModule } from "./NodeModule";
 export { NodeModule } from "./NodeModule";
@@ -132,7 +132,8 @@ export async function importModule(path: string|SFile ,base?:string|SFile):Promi
         if (typeof path==="string") throw invalidSpec();
         ent=resolveEntry(path);
     }
-    const compiled=await ent.compile();
+    const compiler=ESModuleCompiler.create();
+    const compiled=await compiler.compile(ent);
     let u=compiled.url;
     try {
         return await import(/* webpackIgnore: true */u);
@@ -145,7 +146,8 @@ export async function importModule(path: string|SFile ,base?:string|SFile):Promi
     }
 }
 export async function createModuleURL(f:SFile):Promise<string>{
-    return (await ESModuleEntry.fromFile(f).compile()).url;
+    const compiler=ESModuleCompiler.create();
+    return (await compiler.compile(ESModuleEntry.fromFile(f))).url;
 }
 function isError(e:any):e is Error{
     return e&&typeof e.stack==="string";

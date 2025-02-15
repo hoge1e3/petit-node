@@ -100,12 +100,62 @@ type CompiledEvent={
 type CompileStartEvent={
     entry: ESModuleEntry,
 };
-type CompilationContext={
-    aliases: Aliases,
-    depChecker: DependencyChecker,
-    oncompilestart?:(e:CompileStartEvent)=>Promise<void>,
-    oncompiled?:(e:CompiledEvent)=>Promise<void>,
-    oncachehit?:(e:CompileStartEvent)=>Promise<void>,
+export class ESModuleCompiler {
+    depChecker= new DependencyChecker();
+    constructor(
+        public aliases: Aliases,
+        public oncompilestart?:(e:CompileStartEvent)=>Promise<void>,
+        public oncompiled?:(e:CompiledEvent)=>Promise<void>,
+        public oncachehit?:(e:CompileStartEvent)=>Promise<void>){
+    }
+    static create(context:Partial<ESModuleCompiler>={}):ESModuleCompiler {
+        /*const context:Partial<ESModuleCompiler>={
+            aliases:getAliases(),
+            depChecker:new DependencyChecker(),
+        };
+        Object.assign(context, _context);*/
+        return new ESModuleCompiler(context.aliases||getAliases(), context.oncompilestart, context.oncompiled, context.oncachehit);
+    }
+    async compile(entry:ESModuleEntry):Promise<CompiledESModule> {
+        const prevState=entry.enter();
+        const aliases=this.aliases;
+        switch(prevState.type) {
+            case "loading":
+                if (this.oncachehit) await this.oncachehit({entry});
+                return prevState.promise;
+            case "init":
+                if (entry.state.type!=="loading") throw new Error("Illegal state: "+entry.state.type);
+        }
+        if (this.oncompilestart) await this.oncompilestart({entry});
+        const deps=[] as CompiledESModule[];
+        const base=entry.file.up();
+        if (!base) throw new Error(entry.file+" cannot create base.");
+        const urlConverter={
+            conv: async(path:string):Promise<string>=>{
+                if (aliases[path]) {
+                    return aliases[path].url;
+                }
+                if (path.match(/^https?:/)) {
+                    return path;
+                }
+                const e=ESModuleEntry.resolve(path,base);
+                this.depChecker.add(entry.file.path(), e.file.path());
+                const c=await this.compile(e);
+                deps.push(c);
+                return c.url;
+            },
+            deps,
+        };
+        let compiled;
+        try {
+            compiled=entry.complete(await convert(entry, urlConverter));
+        } catch (e) {
+            throw entry.error(e as Error);
+        }
+        if (this?.oncompiled) await this.oncompiled({module:compiled});
+        return compiled;
+    }
+
 };
 type CompileState={
     type:"init"
@@ -149,53 +199,6 @@ export class ESModuleEntry {
     }
     isError():boolean{
         return this.state.type==="loading" && this.state.promise.isRejected;
-    }
-    async compile(_context:Partial<CompilationContext>={}):Promise<CompiledESModule> {
-        const context:CompilationContext={
-            aliases:getAliases(),
-            depChecker:new DependencyChecker(),
-        };
-        Object.assign(context, _context);
-        return await this.compileWith(context);
-    }
-    async compileWith(context:CompilationContext):Promise<CompiledESModule> {
-        const prevState=this.enter();
-        const aliases=context.aliases;//getAliases();
-        switch(prevState.type) {
-            case "loading":
-                if (context.oncachehit) await context.oncachehit({entry:this});
-                return prevState.promise;
-            case "init":
-                if (this.state.type!=="loading") throw new Error("Illegal state: "+this.state.type);
-        }
-        if (context.oncompilestart) await context.oncompilestart({entry:this});
-        const deps=[] as CompiledESModule[];
-        const base=this.file.up();
-        if (!base) throw new Error(this.file+" cannot create base.");
-        const urlConverter={
-            conv: async(path:string):Promise<string>=>{
-                if (aliases[path]) {
-                    return aliases[path].url;
-                }
-                if (path.match(/^https?:/)) {
-                    return path;
-                }
-                const e=ESModuleEntry.resolve(path,base);
-                context.depChecker.add(this.file.path(), e.file.path());
-                const c=await e.compileWith(context);
-                deps.push(c);
-                return c.url;
-            },
-            deps,
-        };
-        let compiled;
-        try {
-            compiled=this.complete(await convert(this, urlConverter));
-        } catch (e) {
-            throw this.error(e as Error);
-        }
-        if (context?.oncompiled) await context.oncompiled({module:compiled});
-        return compiled;
     }
     static fromFile(file:SFile):ESModuleEntry {
         const incache=entryCache.getByFile(file);
