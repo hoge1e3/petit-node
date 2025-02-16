@@ -4,7 +4,6 @@ import { convert } from "./convImport";
 import * as FS from "@hoge1e3/fs2";
 type SFile=FS.SFile;
 import { MultiIndexMap, Index } from "./MultiIndexMap";
-import MutablePromise from "mutable-promise";
 import { Alias, Aliases } from "./types";
 import { NodeModule } from "./NodeModule";
 export type ESModule=Alias|CompiledESModule;
@@ -82,14 +81,14 @@ class DependencyChecker {
 export class CompiledESModule {
     constructor(
         public entry: ESModuleEntry,
-        public dependencies: CompiledESModule[],
+        public dependencies: ESModule[],
         public url: string,
         public generatedCode: string,
     ){
     }
     shouldReload():boolean {
         if (this.entry._shouldReload()) return true;
-        return this.dependencies.some((dep)=>dep.shouldReload());
+        return this.dependencies.some((dep)=>!isAlias(dep) && dep.shouldReload());
     }
     dispose(){
         URL.revokeObjectURL(this.url);
@@ -136,7 +135,7 @@ export class ESModuleCompiler {
     async compilePromise(entry:ESModuleEntry):Promise<CompiledESModule> {
         const aliases=this.aliases;
         if (this.oncompilestart) await this.oncompilestart({entry});
-        const deps=[] as CompiledESModule[];
+        const deps=[] as ESModule[];
         const base=entry.file.up();
         if (!base) throw new Error(entry.file+" cannot create base.");
         const urlConverter={

@@ -4,6 +4,7 @@ const node_modules="node_modules/";
 const package_json="package.json";
 type PackageJson={
     main:string,
+    type?:"module"|"commonJS",
 }
 export class NodeModule {
     constructor(
@@ -19,6 +20,18 @@ export class NodeModule {
         const p=this.packageJsonFile();
         let o=this.packageJson();
         return p.sibling(o.main);
+    }
+    static isESModule(jsfile:SFile) {
+        if (jsfile.ext()===".mjs") return true;
+        if (jsfile.ext()===".cjs") return false;
+        const m=this.resolveFromParent(jsfile);
+        if (!m) {return jsfile.ext()===".mjs";}
+        return m.packageJson().type==="module";
+    }
+    static resolveFromParent(base:SFile) {
+        const pkg=base.closest("package.json");
+        if (!pkg) return undefined;
+        return new NodeModule(pkg.up()!);
     }
     static resolve(name:string,base:SFile):NodeModule {
         for(let p:SFile|null=base;p;p=p.up()){

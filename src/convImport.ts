@@ -4,12 +4,12 @@ import * as espree from 'espree';
 import { simple, SimpleVisitors } from "acorn-walk";
 //import { SourceMapGenerator } from "source-map";
 //import { Content } from "@hoge1e3/fs2";
-import { ESModuleEntry, CompiledESModule } from "./ESModule";
+import { ESModuleEntry, CompiledESModule, ESModule } from "./ESModule";
 
 
 type URLConverter = {
   conv:(s: string) => Promise<string>;
-  deps:CompiledESModule[];
+  deps:ESModule[];
 };
 type Replacement={
     range:number[],
