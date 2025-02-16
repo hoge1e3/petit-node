@@ -174,12 +174,12 @@ export function* loadedModules():Generator<ESModule> {
     }
 }
 export function urlToPath(url:string):string {
-    let ent=cache.byURL.get(url);
+    let ent=cache.getByURL(url);
     if (!ent) return url;
     return getPath(ent);
 }
 export function urlToFile(url:string):SFile {
-    let ent=cache.byURL.get(url);
+    let ent=cache.getByURL(url);
     if (!ent) throw new Error(`${url} is not loaded.`);
     if (isAlias(ent)) throw new Error(`${url} is an Alias(${getPath(ent)}) that is not associated to a file.`);
     return ent.file;

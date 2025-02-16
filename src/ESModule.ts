@@ -15,35 +15,39 @@ export function getPath(e:ESModule) {
     if (isAlias(e)){return e.path;}
     else {return e.entry.file.path();}
 }
-/*class ESModuleEntryCache extends MultiIndexMap<ESModuleEntry> {
-    byPath: Index<string, ESModuleEntry>;
-    constructor() {
-        super();
-        this.byPath=this.newIndex((item)=>item.file.path());        
-    }
-    getByFile(f:SFile) {
-        return this.byPath.get(f.path());
-    }
-}*/
 class ESModuleCache extends MultiIndexMap<ESModule> {
-    byURL: Index<string, ESModule>;
-    byPath: Index<string, ESModule>;
+    private byURL: Index<string, ESModule>;
+    private byPath: Index<string, ESModule>;
     constructor() {
         super();
         this.byURL=this.newIndex((item)=>item.url);
         this.byPath=this.newIndex((item)=>getPath(item));        
     }
     getByFile(f:SFile) {
-        return this.byPath.get(f.path());
+        return this.getByPath(f.path());
+    }
+    getByPath(path:string) {
+        const e=this.byPath.get(path);
+        return this.checkReload(e);
+    }
+    getByURL(url:string) {
+        const e=this.byURL.get(url);
+        return this.checkReload(e);
+    }
+    private checkReload(e:ESModule|undefined) {
+        if (e && !isAlias(e) && e.shouldReload()) {
+            e.dispose();
+            this.delete(e);
+            return undefined;
+        }
+        return e;
     }
 }
-//export const entryCache=new ESModuleEntryCache();
 export const cache=new ESModuleCache();
 
 class DependencyChecker {
     private dependencies: Map<string, Set<string>> = new Map();
     add(dependent: string, dependency: string): void {
-        //console.log(dependent, dependency, this.dependencies)
         if (dependent === dependency) {
             throw new Error(`Self-dependency detected: ${dependent} depends on itself.`);
         }
@@ -111,24 +115,14 @@ export class ESModuleCompiler {
         public oncachehit?:(e:CompileStartEvent)=>Promise<void>){
     }
     static create(context:Partial<ESModuleCompiler>={}):ESModuleCompiler {
-        /*const context:Partial<ESModuleCompiler>={
-            aliases:getAliases(),
-            depChecker:new DependencyChecker(),
-        };
-        Object.assign(context, _context);*/
         return new ESModuleCompiler(context.aliases||getAliases(), context.oncompilestart, context.oncompiled, context.oncachehit);
     }
     async compile(entry:ESModuleEntry):Promise<CompiledESModule> {
         const path=entry.file.path();
-        const incache=cache.byPath.get(path);
+        const incache=cache.getByPath(path);
         if(incache && !isAlias(incache)) {
-            if (!incache.shouldReload()){
-                if (this.oncachehit) await this.oncachehit({entry, byOtherCompiler:true});
-                return incache;    
-            } else {
-                incache.dispose();
-                cache.delete(incache);
-            }
+            if (this.oncachehit) await this.oncachehit({entry, byOtherCompiler:true});
+            return incache;    
         }
         const pIncache=this.promiseCache.get(path);
         if (pIncache) {
@@ -141,14 +135,6 @@ export class ESModuleCompiler {
     }
     async compilePromise(entry:ESModuleEntry):Promise<CompiledESModule> {
         const aliases=this.aliases;
-        /*const prevState=entry.enter();
-        switch(prevState.type) {
-            case "loading":
-                if (this.oncachehit) await this.oncachehit({entry});
-                return prevState.promise;
-            case "init":
-                if (entry.state.type!=="loading") throw new Error("Illegal state: "+entry.state.type);
-        }*/
         if (this.oncompilestart) await this.oncompilestart({entry});
         const deps=[] as CompiledESModule[];
         const base=entry.file.up();
@@ -176,15 +162,7 @@ export class ESModuleCompiler {
     }
 
 };
-/*
-type CompileState={
-    type:"init"
-}| {
-    type:"loading", 
-    promise: MutablePromise<CompiledESModule>,
-};*/
 export class ESModuleEntry {
-    //state: CompileState={type:"init"};
     constructor(
         public file: SFile,
         public sourceCode: string,
@@ -192,53 +170,14 @@ export class ESModuleEntry {
         ) {
     }
     _shouldReload():boolean {
-        return /*this.isError()||*/this.file.lastUpdate()!==this.timestamp;
+        return this.file.lastUpdate()!==this.timestamp;
     }
     async compile(options?:Partial<ESModuleCompiler>):Promise<CompiledESModule> {
         const compiler=ESModuleCompiler.create(options);
         return compiler.compile(this);
     }
-    /*enter():CompileState {
-        const prev=this.state;
-        switch (this.state.type) {
-            case "init":
-                this.state={
-                    type:"loading", promise: new MutablePromise<CompiledESModule>(),
-                };
-                return prev;
-            default:
-                return this.state;
-        }
-    }
-    complete(compiled: CompiledESModule) {
-        if (this.state.type!=="loading")throw new Error("Illegal state: "+this.state.type);
-        this.state.promise.resolve(compiled);
-        cache.add(compiled);
-        return compiled;
-    }
-    error(e:Error) {
-        if (this.state.type!=="loading")throw new Error("Illegal state: "+this.state.type);
-        this.state.promise.reject(e);
-        return e;
-    }
-    isError():boolean{
-        return this.state.type==="loading" && this.state.promise.isRejected;
-    }*/
     static fromFile(file:SFile):ESModuleEntry {
-        /*const incache=entryCache.getByFile(file);
-        if (incache) {
-            const compiled=cache.getByFile(file);
-            if (compiled && !isAlias(compiled)) {
-                if (!compiled.shouldReload()) return incache;
-                cache.delete(compiled);
-                compiled.dispose();
-            } else {
-                if (!incache._shouldReload()) return incache;
-            }
-            entryCache.delete(incache);
-        }*/
         const newEntry=new ESModuleEntry(file, file.text(), file.lastUpdate());
-        //entryCache.add(newEntry);
         return newEntry;
     }
     static resolve(path:string,base:SFile):ESModuleEntry{
