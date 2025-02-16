@@ -1,7 +1,8 @@
 <!--script src="../dist/index.js"></script>
 <script src="setup.js"></script-->
 <script type="module">
-import {main} from "./setup.js";
+import {main, prt} from "./setup.js";
+import pNode from "../dist/index.js";
 const fixture={
     "main.js": `
 import {foo,bar} from "./my_module.js";
@@ -18,4 +19,11 @@ export function bar(x) {
 
 };
 main(fixture);
+await new Promise(s=>setTimeout(s,1000));
+const home=pNode.FS.get("/node/");
+const f=home.rel("my_module.js");
+f.text(f.text().replace("*2","*3"));
+prt(f+" Modified!");
+await new Promise(s=>setTimeout(s,1000));
+await pNode.importModule(home.rel("main.js"));
 </script>

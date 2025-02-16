@@ -15,7 +15,7 @@ export function getPath(e:ESModule) {
     if (isAlias(e)){return e.path;}
     else {return e.entry.file.path();}
 }
-class ESModuleEntryCache extends MultiIndexMap<ESModuleEntry> {
+/*class ESModuleEntryCache extends MultiIndexMap<ESModuleEntry> {
     byPath: Index<string, ESModuleEntry>;
     constructor() {
         super();
@@ -24,7 +24,7 @@ class ESModuleEntryCache extends MultiIndexMap<ESModuleEntry> {
     getByFile(f:SFile) {
         return this.byPath.get(f.path());
     }
-}
+}*/
 class ESModuleCache extends MultiIndexMap<ESModule> {
     byURL: Index<string, ESModule>;
     byPath: Index<string, ESModule>;
@@ -37,7 +37,7 @@ class ESModuleCache extends MultiIndexMap<ESModule> {
         return this.byPath.get(f.path());
     }
 }
-export const entryCache=new ESModuleEntryCache();
+//export const entryCache=new ESModuleEntryCache();
 export const cache=new ESModuleCache();
 
 class DependencyChecker {
@@ -99,9 +99,11 @@ type CompiledEvent={
 };
 type CompileStartEvent={
     entry: ESModuleEntry,
+    byOtherCompiler?: boolean,
 };
 export class ESModuleCompiler {
     depChecker= new DependencyChecker();
+    promiseCache=new Map<string, Promise<CompiledESModule>>();
     constructor(
         public aliases: Aliases,
         public oncompilestart?:(e:CompileStartEvent)=>Promise<void>,
@@ -117,15 +119,36 @@ export class ESModuleCompiler {
         return new ESModuleCompiler(context.aliases||getAliases(), context.oncompilestart, context.oncompiled, context.oncachehit);
     }
     async compile(entry:ESModuleEntry):Promise<CompiledESModule> {
-        const prevState=entry.enter();
+        const path=entry.file.path();
+        const incache=cache.byPath.get(path);
+        if(incache && !isAlias(incache)) {
+            if (!incache.shouldReload()){
+                if (this.oncachehit) await this.oncachehit({entry, byOtherCompiler:true});
+                return incache;    
+            } else {
+                incache.dispose();
+                cache.delete(incache);
+            }
+        }
+        const pIncache=this.promiseCache.get(path);
+        if (pIncache) {
+            if (this.oncachehit) await this.oncachehit({entry, byOtherCompiler:false});
+            return await pIncache;
+        }
+        const pr=/* DO NOT await!*/this.compilePromise(entry);
+        this.promiseCache.set(path, pr);
+        return await pr;
+    }
+    async compilePromise(entry:ESModuleEntry):Promise<CompiledESModule> {
         const aliases=this.aliases;
+        /*const prevState=entry.enter();
         switch(prevState.type) {
             case "loading":
                 if (this.oncachehit) await this.oncachehit({entry});
                 return prevState.promise;
             case "init":
                 if (entry.state.type!=="loading") throw new Error("Illegal state: "+entry.state.type);
-        }
+        }*/
         if (this.oncompilestart) await this.oncompilestart({entry});
         const deps=[] as CompiledESModule[];
         const base=entry.file.up();
@@ -146,25 +169,22 @@ export class ESModuleCompiler {
             },
             deps,
         };
-        let compiled;
-        try {
-            compiled=entry.complete(await convert(entry, urlConverter));
-        } catch (e) {
-            throw entry.error(e as Error);
-        }
+        const compiled=(await convert(entry, urlConverter));
         if (this?.oncompiled) await this.oncompiled({module:compiled});
+        cache.add(compiled);
         return compiled;
     }
 
 };
+/*
 type CompileState={
     type:"init"
 }| {
     type:"loading", 
     promise: MutablePromise<CompiledESModule>,
-};
+};*/
 export class ESModuleEntry {
-    state: CompileState={type:"init"};
+    //state: CompileState={type:"init"};
     constructor(
         public file: SFile,
         public sourceCode: string,
@@ -172,9 +192,13 @@ export class ESModuleEntry {
         ) {
     }
     _shouldReload():boolean {
-        return this.isError()||this.file.lastUpdate()!==this.timestamp;
+        return /*this.isError()||*/this.file.lastUpdate()!==this.timestamp;
     }
-    enter():CompileState {
+    async compile(options?:Partial<ESModuleCompiler>):Promise<CompiledESModule> {
+        const compiler=ESModuleCompiler.create(options);
+        return compiler.compile(this);
+    }
+    /*enter():CompileState {
         const prev=this.state;
         switch (this.state.type) {
             case "init":
@@ -199,9 +223,9 @@ export class ESModuleEntry {
     }
     isError():boolean{
         return this.state.type==="loading" && this.state.promise.isRejected;
-    }
+    }*/
     static fromFile(file:SFile):ESModuleEntry {
-        const incache=entryCache.getByFile(file);
+        /*const incache=entryCache.getByFile(file);
         if (incache) {
             const compiled=cache.getByFile(file);
             if (compiled && !isAlias(compiled)) {
@@ -212,9 +236,9 @@ export class ESModuleEntry {
                 if (!incache._shouldReload()) return incache;
             }
             entryCache.delete(incache);
-        }
+        }*/
         const newEntry=new ESModuleEntry(file, file.text(), file.lastUpdate());
-        entryCache.add(newEntry);
+        //entryCache.add(newEntry);
         return newEntry;
     }
     static resolve(path:string,base:SFile):ESModuleEntry{

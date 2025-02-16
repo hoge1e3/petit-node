@@ -132,8 +132,7 @@ export async function importModule(path: string|SFile ,base?:string|SFile):Promi
         if (typeof path==="string") throw invalidSpec();
         ent=resolveEntry(path);
     }
-    const compiler=ESModuleCompiler.create();
-    const compiled=await compiler.compile(ent);
+    const compiled=await ent.compile();
     let u=compiled.url;
     try {
         return await import(/* webpackIgnore: true */u);
@@ -146,8 +145,7 @@ export async function importModule(path: string|SFile ,base?:string|SFile):Promi
     }
 }
 export async function createModuleURL(f:SFile):Promise<string>{
-    const compiler=ESModuleCompiler.create();
-    return (await compiler.compile(ESModuleEntry.fromFile(f))).url;
+    return (await ESModuleEntry.fromFile(f).compile()).url;
 }
 function isError(e:any):e is Error{
     return e&&typeof e.stack==="string";
