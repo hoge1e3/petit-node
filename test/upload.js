@@ -100,7 +100,8 @@ function afterInit({FS}){
                     auto=run.auto;
                     try {
                         const e=pNode.resolveEntry(FS.get(main));
-                        e.compile(handlers).then(
+                        const compiler=pNode.ESModuleCompiler.create(handlers);
+                        compiler.compile(e).then(
                             r=>console.log("Prefetched auto start",r.url),
                             e=>console.error(e),
                         );

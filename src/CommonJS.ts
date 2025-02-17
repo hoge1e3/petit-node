@@ -79,7 +79,7 @@ export class CJSEntry {
         return CJSEntry.fromFile(m.getMain());
     }
 }
-class CJSCompiler {
+export class CJSCompiler {
     deps=new Set<CompiledCJS>();
     file:SFile;
     base:SFile;

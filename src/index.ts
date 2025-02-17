@@ -3,9 +3,9 @@
 import * as _FS from "@hoge1e3/fs2";
 import {EventHandler} from "@hoge1e3/events";
 import {convert} from "./convImport";
-import { /*liases as aliasStore,*/ initModuleGlobal, addAlias, addAliases } from "./alias";
+import { /*liases as aliasStore,*/ initModuleGlobal, addAlias, addAliases,getAliases } from "./alias";
 import { CompiledESModule, ESModule, ESModuleCompiler, ESModuleEntry, cache as cache, getPath, isAlias, traceInvalidImport } from "./ESModule";
-export { CompiledESModule} from "./ESModule";
+export { CompiledESModule, ESModuleCompiler} from "./ESModule";
 import { NodeModule } from "./NodeModule";
 export { NodeModule } from "./NodeModule";
 import { gen as genfs } from "./fsgen";
@@ -15,8 +15,8 @@ import * as assert from "@hoge1e3/assert";// Replace with assert polyfill, chai.
 import * as util from "@hoge1e3/util";
 import * as sfile from "@hoge1e3/sfile";
 import { Aliases, ModuleValue } from "./types";
-export {require} from "./CommonJS";
-import {require} from "./CommonJS";
+export {require, CJSCompiler} from "./CommonJS";
+import {require, CJSCompiler} from "./CommonJS";
 
 type SFile=_FS.SFile;
 declare let globalThis:any;
@@ -47,7 +47,8 @@ let pNode={
     boot, importModule, import: importModule, 
     createModuleURL, resolveEntry, 
     CompiledESModule, ESModuleEntry, 
-    ESModule: CompiledESModule, NodeModule, addAlias, addAliases,
+    ESModule: CompiledESModule, NodeModule, addAlias, addAliases,getAliases,
+    ESModuleCompiler, CJSCompiler,
     convertStack, loadedModules, urlToFile, events, on, urlToPath, 
     thisUrl, FS, require,
     default:{} as any,
@@ -125,7 +126,10 @@ export async function importModule(path: SFile):Promise<ModuleValue>;
 export async function importModule(path: string, base: string|SFile):Promise<ModuleValue>;
 export async function importModule(path: string|SFile ,base?:string|SFile):Promise<ModuleValue>{
     let ent;
-    if (base) {
+    const aliases=getAliases();
+    if (typeof path==="string" && aliases[path]) {
+        return aliases[path].value;
+    } else if (base) {
         if (typeof path!=="string") throw invalidSpec();
         ent=resolveEntry(path,base);
     } else {
