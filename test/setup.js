@@ -14,6 +14,7 @@ export function loadFixture(dir,fixture) {
         }
     }
 }
+export const sleep=(t=1000)=>new Promise(s=>setTimeout(s,t));
 export async function main(fixture,aliases){
     checkModuleExports(pNode);
     return await pNode.boot({

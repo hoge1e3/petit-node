@@ -1,0 +1,41 @@
+<!--script src="../dist/index.js"></script>
+<script src="setup.js"></script-->
+<script type="module">
+import {main, prt, sleep} from "./setup.js";
+import pNode from "../dist/index.js";
+window.prt=prt;
+const fixture={
+    "main.js": `
+import {require} from "petit-node";
+require("/node/cjs.js");
+    `,
+    "cjs.js": `
+const foo=require("./foo.js");
+const {inc}=require("./bar.js");
+prt(foo.inc());
+prt(inc());
+`,
+    "foo.js": `
+const {inc}=require("./baz.js");
+exports.inc=()=>"foo: "+inc();
+`,
+    "bar.js": `
+const baz=require("./baz.js");
+exports.inc=()=>"bar: "+baz.inc();
+`,
+    "baz.js": `
+let c=0;
+exports.inc=()=>c++;
+prt("baz.js loaded");
+`,
+};
+main(fixture);
+await sleep();
+pNode.FS.get("/node/baz.js").text(`
+let c=0;
+exports.inc=()=>c+=2;
+prt("baz.js reloaded");
+`);
+await pNode.import(pNode.FS.get("/node/main.js"));
+//pNode.require("/node/cjs.js");
+</script>

@@ -17,7 +17,13 @@ class CompiledCJSCache extends MultiIndexMap<CompiledCJS> {
         this.byPath=this.newIndex((item)=>item.file.path());        
     }
     getByFile(f:SFile) {
-        return this.byPath.get(f.path());
+        const c=this.byPath.get(f.path());
+        if (c) {
+            if(!c.shouldReload()) return c;
+            c.dispose();
+            this.delete(c);    
+        }
+        return undefined;
     }
 }
 export const compiledCache=new CompiledCJSCache();
@@ -51,7 +57,7 @@ export class CJSEntry {
     _shouldReload():boolean {
         return /*this.isError()||*/this.file.lastUpdate()!==this.timestamp;
     }
-    compile():CompiledCJS {
+    /*compile():CompiledCJS {
         let c=compiledCache.getByFile(this.file);
         if (c) {
             if(!c.shouldReload()) return c;
@@ -61,7 +67,7 @@ export class CJSEntry {
         c=new CJSCompiler(this).compile();
         compiledCache.add(c);
         return c;
-    }
+    }*/
     static fromFile(file:SFile):CJSEntry {
         const newEntry=new CJSEntry(file, file.text(), file.lastUpdate());
         return newEntry;
@@ -81,47 +87,51 @@ export class CJSEntry {
 }
 export class CJSCompiler {
     deps=new Set<CompiledCJS>();
-    file:SFile;
-    base:SFile;
+    //file:SFile;
+    //base:SFile;
     alias: Aliases;
     constructor(
-        public entry: CJSEntry,
     ) {
-        this.file=entry.file;
-        this.base=entry.file.up()!;
+        //this.file=entry.file;
+        //this.base=entry.file.up()!;
         this.alias=getAliases();
-        if (!this.base) throw new Error(this.file+" cannot create base.");
+        //if (!this.base) throw new Error(this.file+" cannot create base.");
     }
-    requireFunc():RequireFunc {
+    requireFunc(base:SFile):RequireFunc {
         return (path:string)=>{
             if (this.alias[path]) {
                 return this.alias[path].value;
             }
-            const e=CJSEntry.resolve(path,this.base);
-            const c=e.compile();
+            const e=CJSEntry.resolve(path,base);
+            const c=this.compile(e);
             this.deps.add(c);
             return c.exports;
         }
     }
-    requireArguments() {
-        const file=this.file;
-        const base=this.base;
-        const require=this.requireFunc();
+    requireArguments(file:SFile) {
+        const base=file.up()!;
+        const require=this.requireFunc(base);
         const exports={} as ModuleValue;
         const module={exports};
         const filename=file.path();
         const dirname=base.path();
         return [require, exports, module, filename, dirname ] as [RequireFunc, ModuleValue, Module, string, string ];
     }
-    compile():CompiledCJS {
-        const file=this.file;
+    compile(entry: CJSEntry):CompiledCJS {
+        const file=entry.file;
+        let c=compiledCache.getByFile(file);
+        if (c) {
+            return c;
+        }
         const sourceURL=`//# sourceURL=file://${file.path()}`;
-        const funcSrc=this.entry.sourceCode+"\n"+sourceURL;
+        const funcSrc=entry.sourceCode+"\n"+sourceURL;
         const func=new Function("require", "exports","module","__filename", "__dirname", funcSrc);
-        const args=this.requireArguments();
+        const args=this.requireArguments(file);
         func(...args);
         const module=args[2];
-        return new CompiledCJS( this.entry, [...this.deps], module.exports, funcSrc);
+        const compiled=new CompiledCJS( entry, [...this.deps], module.exports, funcSrc);
+        compiledCache.add(compiled);
+        return compiled;
     }
     
 }
@@ -146,5 +156,5 @@ export function require(porf:string|SFile, base?:SFile|string):ModuleValue {
     } else {
         fbase=base;
     }
-    return CJSEntry.resolve(path,fbase).compile().exports;
+    return new CJSCompiler().compile(CJSEntry.resolve(path,fbase)).exports;
 }
