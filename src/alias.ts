@@ -7,8 +7,8 @@ export function getAliases(){
     return gbl_info.value.aliases;
 }
 export function addAliases(p:Aliases){
-    for (let k in p) {
-        addAlias(k, p[k]);
+    for (let [path, alias] of p) {
+        addAlias(path, alias.value);
     }
 }
 const reservedWords={
@@ -38,7 +38,7 @@ export function addAlias(path:string, value:ModuleValue) {
     const valueName=uniqueName([...keys,ginfName]);
     const jsCodeString=`
 import ${ginfName} from "${ginf.url}";
-let ${valueName}=${ginfName}.aliases["${path}"].value;
+let ${valueName}=${ginfName}.aliases.get("${path}").value;
 ${keys.map((key)=>
     key=="default"?
 `export default ${valueName}.default;`:
@@ -46,11 +46,11 @@ ${keys.map((key)=>
     ).join("\n")}
 `;
     let blobUrl = jsToBlobURL(jsCodeString);
-    ginf.value.aliases[path]={
+    ginf.value.aliases.set(path,{
         path,
         url:blobUrl,
         value,
-    };
+    });
 }
 export function getGlobalInfo(){
     return gbl_info;
@@ -61,7 +61,7 @@ const gbl={
     rawImport(url){
         return import(url);
     },
-    aliases:{},
+    aliases:new Map(),
 };
 export default gbl;
 `;

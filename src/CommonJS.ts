@@ -89,18 +89,18 @@ export class CJSCompiler {
     deps=new Set<CompiledCJS>();
     //file:SFile;
     //base:SFile;
-    alias: Aliases;
+    aliases: Aliases;
     constructor(
     ) {
         //this.file=entry.file;
         //this.base=entry.file.up()!;
-        this.alias=getAliases();
+        this.aliases=getAliases();
         //if (!this.base) throw new Error(this.file+" cannot create base.");
     }
     requireFunc(base:SFile):RequireFunc {
         return (path:string)=>{
-            if (this.alias[path]) {
-                return this.alias[path].value;
+            if (this.aliases.has(path)) {
+                return this.aliases.get(path)!.value;
             }
             const e=CJSEntry.resolve(path,base);
             const c=this.compile(e);

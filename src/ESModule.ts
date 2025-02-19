@@ -140,8 +140,10 @@ export class ESModuleCompiler {
         if (!base) throw new Error(entry.file+" cannot create base.");
         const urlConverter={
             conv: async(path:string):Promise<string>=>{
-                if (aliases[path]) {
-                    return aliases[path].url;
+                if (aliases.has(path)) {
+                    const a=aliases.get(path)!;
+                    deps.push(a);
+                    return a.url;
                 }
                 if (path.match(/^https?:/)) {
                     return path;
@@ -194,18 +196,20 @@ export class ESModuleEntry {
 }
 export function traceInvalidImport(original:Error, start:CompiledESModule) {
     let targetURL:string|null=null;
-    for (let e of cache) {
-        const idx=original.message.indexOf(e.url);
+    const aliasList=getAliases().values();
+    for (let e of [...cache, ...aliasList]) {
+        const url=e.url;
+        const idx=original.message.indexOf(url);
         if (idx>=0) {
-            targetURL=e.url;
+            targetURL=url;
             original.message=original.message.substring(0,idx)+
                 getPath(e)+
-                original.message.substring(idx+e.url.length);
+                original.message.substring(idx+url.length);
             break;
         }
     }
     if (!targetURL) return original;
-    const candidates=[] as CompiledESModule[];
+    const candidates=[] as ESModule[];
     function findFrom(start:CompiledESModule) {
         for (let d of start.dependencies) {
             if (d.url==targetURL) {
@@ -216,6 +220,6 @@ export function traceInvalidImport(original:Error, start:CompiledESModule) {
         }
     }
     findFrom(start);
-    if (candidates.length==0) return null;
-    return new Error(original.message+"\n"+"Check these dependents:\n"+candidates.map((c)=>c.entry.file.path()).join("\n"));
+    if (candidates.length==0) return original;
+    return new Error(original.message+"\n"+"Check these dependents:\n"+candidates.map((c)=>getPath(c)).join("\n"));
 }

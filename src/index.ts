@@ -127,8 +127,8 @@ export async function importModule(path: string, base: string|SFile):Promise<Mod
 export async function importModule(path: string|SFile ,base?:string|SFile):Promise<ModuleValue>{
     let ent;
     const aliases=getAliases();
-    if (typeof path==="string" && aliases[path]) {
-        return aliases[path].value;
+    if (typeof path==="string" && aliases.has(path)) {
+        return aliases.get(path)!.value;
     } else if (base) {
         if (typeof path!=="string") throw invalidSpec();
         ent=resolveEntry(path,base);

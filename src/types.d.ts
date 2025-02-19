@@ -20,4 +20,4 @@ export type Alias={
     url: string,
     value: ModuleValue,
 };
-export type Aliases={[key:string]: Alias};
+export type Aliases=Map<string, Alias>;//{[key:string]: Alias};

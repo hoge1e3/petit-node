@@ -1,0 +1,25 @@
+<body></body>
+<script type="module">
+import pNode from "../dist/index.js";
+import {main,prt} from "./setup.js";
+window.pNode=pNode;
+window.prt=prt;
+const fixture={
+    "main.js": `
+import {readfileSync} from "fs";
+prt(readfileSync("/node/main.js"));
+`,
+};
+try {
+    await main(fixture);
+} catch(e) {
+    console.log("error", e);
+    prt(e);
+    await new Promise(s=>setTimeout(s,1000));
+    const home=pNode.FS.get("/node/");
+    const f=home.rel("main.js");
+    f.text(f.text().replace(/readfileSync/g,"readFileSync"));
+    prt("Error fixed!");
+    await pNode.importModule(home.rel("main.js"));
+}
+</script>
