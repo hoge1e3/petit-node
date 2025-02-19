@@ -5,7 +5,7 @@ import { Index, MultiIndexMap } from "./MultiIndexMap";
 import { getAliases } from "./alias";
 import { ModuleCache, ModuleEntry } from "./Module";
 
-type RequireFunc=(path:string)=>ModuleValue;
+type RequireFunc=((path:string)=>ModuleValue)&{deps:Set<CompiledCJS>};
 type Module={exports:ModuleValue};
 
 /*class CompiledCJSCache extends MultiIndexMap<CompiledCJS> {
@@ -48,7 +48,7 @@ export class CJSCompiler {
     static create(): CJSCompiler {
         return new CJSCompiler();
     }
-    deps=new Set<Module>();
+    //deps=new Set<CompiledCJS>();
     //file:SFile;
     //base:SFile;
     aliases: IModuleCache;
@@ -60,15 +60,16 @@ export class CJSCompiler {
         //if (!this.base) throw new Error(this.file+" cannot create base.");
     }
     requireFunc(base:SFile):RequireFunc {
-        return (path:string)=>{
+        const deps=new Set<CompiledCJS>();
+        return Object.assign((path:string)=>{
             if (this.aliases.has(path)) {
                 return this.aliases.get(path)!.value;
             }
             const e=ModuleEntry.resolve(path,base);
             const c=this.compile(e);
-            this.deps.add(c);
+            deps.add(c);
             return c.exports;
-        }
+        }, {deps});
     }
     requireArguments(file:SFile) {
         const base=file.up()!;
@@ -91,7 +92,7 @@ export class CJSCompiler {
         const args=this.requireArguments(file);
         func(...args);
         const module=args[2];
-        const compiled=new CompiledCJS( entry, [...this.deps], module.exports, funcSrc);
+        const compiled=new CompiledCJS( entry, [...args[0].deps], module.exports, funcSrc);
         compiledCache.add(compiled);
         return compiled;
     }
