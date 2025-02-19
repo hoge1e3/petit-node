@@ -4,7 +4,7 @@ import * as _FS from "@hoge1e3/fs2";
 import {EventHandler} from "@hoge1e3/events";
 import {convert} from "./convImport";
 import { /*liases as aliasStore,*/ initModuleGlobal, addAlias, addAliases,getAliases } from "./alias";
-import { CompiledESModule, ESModule, ESModuleCompiler, ESModuleEntry, cache as cache, getPath, isAlias, traceInvalidImport } from "./ESModule";
+import { CompiledESModule, ESModule, ESModuleCompiler, cache as cache, getPath, isAlias, traceInvalidImport } from "./ESModule";
 export { CompiledESModule, ESModuleCompiler} from "./ESModule";
 import { NodeModule } from "./NodeModule";
 export { NodeModule } from "./NodeModule";
@@ -17,6 +17,7 @@ import * as sfile from "@hoge1e3/sfile";
 import { Aliases, ModuleValue } from "./types";
 export {require, CJSCompiler} from "./CommonJS";
 import {require, CJSCompiler} from "./CommonJS";
+import { ModuleEntry } from "./Module";
 
 type SFile=_FS.SFile;
 declare let globalThis:any;
@@ -46,7 +47,7 @@ export let on=events.on.bind(events);
 let pNode={
     boot, importModule, import: importModule, 
     createModuleURL, resolveEntry, 
-    CompiledESModule, ESModuleEntry, 
+    CompiledESModule, ModuleEntry, 
     ESModule: CompiledESModule, NodeModule, addAlias, addAliases,getAliases,
     ESModuleCompiler, CJSCompiler,
     convertStack, loadedModules, urlToFile, events, on, urlToPath, 
@@ -102,22 +103,22 @@ export async function boot(options:BootOptions={
     }
 }
 const invalidSpec=()=>new Error("Invalid argument: either (file) or (str,file)");
-export function resolveEntry(path: SFile):ESModuleEntry;
-export function resolveEntry(path: string, base: string|SFile):ESModuleEntry;
-export function resolveEntry(path: string|SFile ,base?:string|SFile):ESModuleEntry{
-    let mod:ESModuleEntry;
+export function resolveEntry(path: SFile):ModuleEntry;
+export function resolveEntry(path: string, base: string|SFile):ModuleEntry;
+export function resolveEntry(path: string|SFile ,base?:string|SFile):ModuleEntry{
+    let mod:ModuleEntry;
     if(base){
         if (typeof path!=="string") throw invalidSpec();
-        mod=ESModuleEntry.resolve(
+        mod=ModuleEntry.resolve(
             path,
             typeof base==="string"?FS.get(base):base
         );
     } else {
         if (typeof path==="string") throw invalidSpec();
         if(path.isDir()){
-            mod=ESModuleEntry.fromNodeModule(new NodeModule(path));
+            mod=ModuleEntry.fromNodeModule(new NodeModule(path));
         }else{
-            mod=ESModuleEntry.fromFile(path);
+            mod=ModuleEntry.fromFile(path);
         }
     }
     return mod;
@@ -136,7 +137,8 @@ export async function importModule(path: string|SFile ,base?:string|SFile):Promi
         if (typeof path==="string") throw invalidSpec();
         ent=resolveEntry(path);
     }
-    const compiled=await ent.compile();
+    const compiler=ESModuleCompiler.create();
+    const compiled=await compiler.compile(ent);
     let u=compiled.url;
     try {
         return await import(/* webpackIgnore: true */u);
@@ -149,7 +151,8 @@ export async function importModule(path: string|SFile ,base?:string|SFile):Promi
     }
 }
 export async function createModuleURL(f:SFile):Promise<string>{
-    return (await ESModuleEntry.fromFile(f).compile()).url;
+    const compiler=ESModuleCompiler.create();
+    return (await compiler.compile(ModuleEntry.fromFile(f))).url;
 }
 function isError(e:any):e is Error{
     return e&&typeof e.stack==="string";

@@ -1,9 +1,9 @@
 import { SFile } from "@hoge1e3/sfile";
 import { Aliases, ModuleValue } from "./types";
-import { NodeModule } from "./NodeModule";
-import { FS } from ".";
+import * as FS from "@hoge1e3/fs2";
 import { Index, MultiIndexMap } from "./MultiIndexMap";
 import { getAliases } from "./alias";
+import { ModuleEntry } from "./Module";
 
 type RequireFunc=(path:string)=>ModuleValue;
 type Module={exports:ModuleValue};
@@ -30,7 +30,7 @@ export const compiledCache=new CompiledCJSCache();
 
 export class CompiledCJS {
     constructor(
-        public entry: CJSEntry,
+        public entry: ModuleEntry,
         public dependencies: CompiledCJS[],
         public exports: ModuleValue,
         public generatedCode: string,
@@ -47,45 +47,10 @@ export class CompiledCJS {
     get sourceCode(){return this.entry.sourceCode;}
     get timestamp(){return this.entry.timestamp;}
 }
-export class CJSEntry {
-    constructor(
-        public file: SFile,
-        public sourceCode: string,
-        public timestamp: number,
-        ) {
-    }
-    _shouldReload():boolean {
-        return /*this.isError()||*/this.file.lastUpdate()!==this.timestamp;
-    }
-    /*compile():CompiledCJS {
-        let c=compiledCache.getByFile(this.file);
-        if (c) {
-            if(!c.shouldReload()) return c;
-            c.dispose();
-            compiledCache.delete(c);
-        }
-        c=new CJSCompiler(this).compile();
-        compiledCache.add(c);
-        return c;
-    }*/
-    static fromFile(file:SFile):CJSEntry {
-        const newEntry=new CJSEntry(file, file.text(), file.lastUpdate());
-        return newEntry;
-    }
-    static resolve(path:string,base:SFile):CJSEntry{
-        if(path.match(/^\./)){
-            return this.fromFile(base.rel(path));
-        }else if(path.match(/^\//)){
-            return this.fromFile(FS.get(path));
-        }else {
-            return this.fromNodeModule(NodeModule.resolve(path,base));
-        }
-    }
-    static fromNodeModule(m:NodeModule):CJSEntry {
-        return CJSEntry.fromFile(m.getMain());
-    }
-}
 export class CJSCompiler {
+    static create(): CJSCompiler {
+        return new CJSCompiler();
+    }
     deps=new Set<CompiledCJS>();
     //file:SFile;
     //base:SFile;
@@ -102,7 +67,7 @@ export class CJSCompiler {
             if (this.aliases.has(path)) {
                 return this.aliases.get(path)!.value;
             }
-            const e=CJSEntry.resolve(path,base);
+            const e=ModuleEntry.resolve(path,base);
             const c=this.compile(e);
             this.deps.add(c);
             return c.exports;
@@ -117,7 +82,7 @@ export class CJSCompiler {
         const dirname=base.path();
         return [require, exports, module, filename, dirname ] as [RequireFunc, ModuleValue, Module, string, string ];
     }
-    compile(entry: CJSEntry):CompiledCJS {
+    compile(entry: ModuleEntry):CompiledCJS {
         const file=entry.file;
         let c=compiledCache.getByFile(file);
         if (c) {
@@ -156,5 +121,5 @@ export function require(porf:string|SFile, base?:SFile|string):ModuleValue {
     } else {
         fbase=base;
     }
-    return new CJSCompiler().compile(CJSEntry.resolve(path,fbase)).exports;
+    return new CJSCompiler().compile(ModuleEntry.resolve(path,fbase)).exports;
 }

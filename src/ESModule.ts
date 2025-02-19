@@ -5,7 +5,7 @@ import * as FS from "@hoge1e3/fs2";
 type SFile=FS.SFile;
 import { MultiIndexMap, Index } from "./MultiIndexMap";
 import { Alias, Aliases } from "./types";
-import { NodeModule } from "./NodeModule";
+import { ModuleEntry } from "./Module";
 export type ESModule=Alias|CompiledESModule;
 export function isAlias(e:ESModule): e is Alias {
     return !(e instanceof CompiledESModule);
@@ -80,7 +80,7 @@ class DependencyChecker {
 }
 export class CompiledESModule {
     constructor(
-        public entry: ESModuleEntry,
+        public entry: ModuleEntry,
         public dependencies: ESModule[],
         public url: string,
         public generatedCode: string,
@@ -101,7 +101,7 @@ type CompiledEvent={
     module: CompiledESModule,
 };
 type CompileStartEvent={
-    entry: ESModuleEntry,
+    entry: ModuleEntry,
     byOtherCompiler?: boolean,
 };
 export class ESModuleCompiler {
@@ -116,7 +116,7 @@ export class ESModuleCompiler {
     static create(context:Partial<ESModuleCompiler>={}):ESModuleCompiler {
         return new ESModuleCompiler(context.aliases||getAliases(), context.oncompilestart, context.oncompiled, context.oncachehit);
     }
-    async compile(entry:ESModuleEntry):Promise<CompiledESModule> {
+    async compile(entry:ModuleEntry):Promise<CompiledESModule> {
         const path=entry.file.path();
         const incache=cache.getByPath(path);
         if(incache && !isAlias(incache)) {
@@ -132,7 +132,7 @@ export class ESModuleCompiler {
         this.promiseCache.set(path, pr);
         return await pr;
     }
-    async compilePromise(entry:ESModuleEntry):Promise<CompiledESModule> {
+    async compilePromise(entry:ModuleEntry):Promise<CompiledESModule> {
         const aliases=this.aliases;
         if (this.oncompilestart) await this.oncompilestart({entry});
         const deps=[] as ESModule[];
@@ -148,7 +148,7 @@ export class ESModuleCompiler {
                 if (path.match(/^https?:/)) {
                     return path;
                 }
-                const e=ESModuleEntry.resolve(path,base);
+                const e=ModuleEntry.resolve(path,base);
                 this.depChecker.add(entry.file.path(), e.file.path());
                 const c=await this.compile(e);
                 deps.push(c);
@@ -163,37 +163,7 @@ export class ESModuleCompiler {
     }
 
 };
-export class ESModuleEntry {
-    constructor(
-        public file: SFile,
-        public sourceCode: string,
-        public timestamp: number,
-        ) {
-    }
-    _shouldReload():boolean {
-        return this.file.lastUpdate()!==this.timestamp;
-    }
-    async compile(options?:Partial<ESModuleCompiler>):Promise<CompiledESModule> {
-        const compiler=ESModuleCompiler.create(options);
-        return compiler.compile(this);
-    }
-    static fromFile(file:SFile):ESModuleEntry {
-        const newEntry=new ESModuleEntry(file, file.text(), file.lastUpdate());
-        return newEntry;
-    }
-    static resolve(path:string,base:SFile):ESModuleEntry{
-        if(path.match(/^\./)){
-            return this.fromFile(base.rel(path));
-        }else if(path.match(/^\//)){
-            return this.fromFile(FS.get(path));
-        }else {
-            return this.fromNodeModule(NodeModule.resolve(path,base));
-        }
-    }
-    static fromNodeModule(m:NodeModule):ESModuleEntry {
-        return ESModuleEntry.fromFile(m.getMain());
-    }
-}
+
 export function traceInvalidImport(original:Error, start:CompiledESModule) {
     let targetURL:string|null=null;
     const aliasList=getAliases().values();
