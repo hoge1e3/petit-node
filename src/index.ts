@@ -186,8 +186,8 @@ export function urlToPath(url:string):string {
     return getPath(ent);
 }
 export function urlToFile(url:string):SFile {
-    let ent=cache.getByURL(url);
-    if (!ent) throw new Error(`${url} is not loaded.`);
-    if (isAlias(ent)) throw new Error(`${url} is an Alias(${getPath(ent)}) that is not associated to a file.`);
-    return ent.file;
+    let mod=cache.getByURL(url);
+    if (!mod) throw new Error(`${url} is not loaded.`);
+    if (isAlias(mod)) throw new Error(`${url} is an Alias(${getPath(mod)}) that is not associated to a file.`);
+    return mod.entry.file;
 }

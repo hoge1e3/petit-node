@@ -1,4 +1,6 @@
+import { boot } from ".";
 import { uniqueName, valueToESCode } from "./ESModuleGenerator";
+import { BuiltinModule, ModuleCache } from "./Module";
 import { jsToBlobURL } from "./scriptTag";
 import { Aliases, ModuleValue } from "./types";
 import { GlobalValue, GlobalInfo } from "./types";
@@ -23,29 +25,18 @@ let ${valueName}=${ginfName}.aliases.get("${path}").value;
 ${valueToESCode(valueName, value, keys)}
 `;
     let blobUrl = jsToBlobURL(jsCodeString);
-    ginf.value.aliases.set(path,{
-        path,
-        url:blobUrl,
-        value,
-    });
+    ginf.value.aliases.add(new BuiltinModule(path, value, blobUrl));
 }
 export function getGlobalInfo(){
     return gbl_info;
 }
 export async function initModuleGlobal():Promise<GlobalInfo>{ 
-    const jsCodeString=`
-const gbl={
-    rawImport(url){
-        return import(url);
-    },
-    aliases:new Map(),
-};
-export default gbl;
-`;
-    let blobUrl = jsToBlobURL(jsCodeString);
+    const jsCodeString=`export default {};`;
+    const blobUrl = jsToBlobURL(jsCodeString);
     const gbl=(
         await import(/* webpackIgnore: true */blobUrl)
     ).default as GlobalValue;
+    gbl.aliases=new ModuleCache();
     gbl_info={value: gbl, url: blobUrl};
     return gbl_info;
 }

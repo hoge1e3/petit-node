@@ -5,7 +5,7 @@ import * as FS from "@hoge1e3/fs2";
 type SFile=FS.SFile;
 import { MultiIndexMap, Index } from "./MultiIndexMap";
 import { Alias, Aliases } from "./types";
-import { ModuleEntry } from "./Module";
+import { CompiledESModule, Module, ModuleEntry } from "./Module";
 export type ESModule=Alias|CompiledESModule;
 export function isAlias(e:ESModule): e is Alias {
     return !(e instanceof CompiledESModule);
@@ -78,7 +78,7 @@ class DependencyChecker {
         return undefined;
     }
 }
-export class CompiledESModule {
+/*export class CompiledESModule {
     constructor(
         public entry: ModuleEntry,
         public dependencies: ESModule[],
@@ -93,12 +93,9 @@ export class CompiledESModule {
     dispose(){
         URL.revokeObjectURL(this.url);
     }
-    get file(){return this.entry.file;}
-    get sourceCode(){return this.entry.sourceCode;}
-    get timestamp(){return this.entry.timestamp;}
-}
+}*/
 type CompiledEvent={
-    module: CompiledESModule,
+    module: Module,
 };
 type CompileStartEvent={
     entry: ModuleEntry,
@@ -179,17 +176,17 @@ export function traceInvalidImport(original:Error, start:CompiledESModule) {
         }
     }
     if (!targetURL) return original;
-    const candidates=[] as ESModule[];
-    function findFrom(start:CompiledESModule) {
+    const candidates=[] as Module[];
+    function findFrom(start:Module) {
         for (let d of start.dependencies) {
             if (d.url==targetURL) {
                 candidates.push(start);
                 return;
             }
-            if (!isAlias(d)) findFrom(d);
+            findFrom(d);
         }
     }
     findFrom(start);
     if (candidates.length==0) return original;
-    return new Error(original.message+"\n"+"Check these dependents:\n"+candidates.map((c)=>getPath(c)).join("\n"));
+    return new Error(original.message+"\n"+"Check these dependents:\n"+candidates.map((c)=>c.path).join("\n"));
 }

@@ -1,20 +1,20 @@
 import { SFile } from "@hoge1e3/sfile";
-import { Aliases, ModuleValue } from "./types";
+import { Aliases, IModuleCache, ModuleValue } from "./types";
 import * as FS from "@hoge1e3/fs2";
 import { Index, MultiIndexMap } from "./MultiIndexMap";
 import { getAliases } from "./alias";
-import { ModuleEntry } from "./Module";
+import { ModuleCache, ModuleEntry } from "./Module";
 
 type RequireFunc=(path:string)=>ModuleValue;
 type Module={exports:ModuleValue};
 
-class CompiledCJSCache extends MultiIndexMap<CompiledCJS> {
+/*class CompiledCJSCache extends MultiIndexMap<CompiledCJS> {
     //byURL: Index<string, CompiledCJS>;
     byPath: Index<string, CompiledCJS>;
     constructor() {
         super();
         //this.byURL=this.newIndex((item)=>item.url);
-        this.byPath=this.newIndex((item)=>item.file.path());        
+        this.byPath=this.newIndex((item)=>item.entry.file.path());        
     }
     getByFile(f:SFile) {
         const c=this.byPath.get(f.path());
@@ -27,8 +27,8 @@ class CompiledCJSCache extends MultiIndexMap<CompiledCJS> {
     }
 }
 export const compiledCache=new CompiledCJSCache();
-
-export class CompiledCJS {
+*/
+/*export class CompiledCJS {
     constructor(
         public entry: ModuleEntry,
         public dependencies: CompiledCJS[],
@@ -43,18 +43,15 @@ export class CompiledCJS {
     dispose(){
         //URL.revokeObjectURL(this.url);
     }
-    get file(){return this.entry.file;}
-    get sourceCode(){return this.entry.sourceCode;}
-    get timestamp(){return this.entry.timestamp;}
-}
+}*/
 export class CJSCompiler {
     static create(): CJSCompiler {
         return new CJSCompiler();
     }
-    deps=new Set<CompiledCJS>();
+    deps=new Set<Module>();
     //file:SFile;
     //base:SFile;
-    aliases: Aliases;
+    aliases: IModuleCache;
     constructor(
     ) {
         //this.file=entry.file;

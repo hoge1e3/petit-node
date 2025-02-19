@@ -1,6 +1,7 @@
 import { SFile } from "@hoge1e3/sfile";
 import { NodeModule } from "./NodeModule";
 import * as FS from "@hoge1e3/fs2";
+import { IModuleCache, Module, ModuleValue } from "./types";
 export class ModuleEntry {
     constructor(
         public file: SFile,
@@ -26,5 +27,90 @@ export class ModuleEntry {
     }
     static fromNodeModule(m:NodeModule):ModuleEntry {
         return ModuleEntry.fromFile(m.getMain());
+    }
+}
+export class CompiledESModule implements Module {
+    readonly type="ES";
+    public path:string;
+    constructor(
+        public entry: ModuleEntry,
+        public dependencies: Module[],
+        public url: string,
+        public generatedCode: string,
+    ){
+        this.path=entry.file.path();
+    }
+    shouldReload():boolean {
+        if (this.entry._shouldReload()) return true;
+        return this.dependencies.some((dep)=>dep.shouldReload());
+    }
+    dispose(){
+        URL.revokeObjectURL(this.url);
+    }
+}
+export class CompiledCJS implements Module{
+    readonly type="CJS";
+    public path:string;
+    public url:string|undefined;
+    constructor(
+        public entry: ModuleEntry,
+        public dependencies: Module[],
+        public exports: ModuleValue,
+        public generatedCode: string,
+    ){
+        this.path=entry.file.path();
+    }
+    shouldReload():boolean {
+        if (this.entry._shouldReload()) return true;
+        return this.dependencies.some((dep)=>dep.shouldReload());
+    }
+    dispose(){
+        if (this.url) URL.revokeObjectURL(this.url);
+    }
+}
+export class BuiltinModule implements Module {
+    readonly type="Builtin";
+    dependencies: Module[];
+    constructor(public path:string, public value:ModuleValue, public url:string) {
+        this.dependencies=[];
+    }
+    shouldReload(): boolean {return false;}
+    dispose(): void {}
+}
+export class ModuleCache implements IModuleCache {
+    private byURL=new Map<string, Module>;
+    private byPath=new Map<string, Module>;
+    constructor() {
+    }
+    add(m:Module) {
+        if (m.url) this.byURL.set(m.url,m);
+        this.byPath.set(m.path, m);
+    }
+    delete(m:Module) {
+        if (m.url) this.byURL.delete(m.url);
+        this.byPath.delete(m.path);
+    }
+    setURL(c:CompiledCJS, u:string){
+        c.url=u;
+        this.byURL.set(c.url, c);
+    }
+    getByFile(f:SFile) {
+        return this.getByPath(f.path());
+    }
+    getByPath(path:string) {
+        const e=this.byPath.get(path);
+        return this.checkReload(e);
+    }
+    getByURL(url:string) {
+        const e=this.byURL.get(url);
+        return this.checkReload(e);
+    }
+    private checkReload(e:Module|undefined) {
+        if (e && e.shouldReload()) {
+            e.dispose();
+            this.delete(e);
+            return undefined;
+        }
+        return e;
     }
 }

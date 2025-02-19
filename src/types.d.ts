@@ -6,18 +6,28 @@
 declare type Content={
     toURL():string;
 }*/
+export type ModuleType="ES"|"CJS"|"Builtin"|"External";
+export interface Module{
+    type: ModuleType,
+    path: string,
+    value?: ModuleValue,
+    url?: string,
+    dependencies: Module[],
+    shouldReload(): boolean;
+    dispose(): void;
+}
 export type ModuleValue=unknown;
 export type GlobalValue={
-    rawImport(url:string):Promise<ModuleValue>,
-    aliases: Aliases,
+    aliases: IModuleCache,
 };
 export type GlobalInfo={
     value: GlobalValue,
     url: string,
 };
-export type Alias={
-    path: string,
-    url: string,
-    value: ModuleValue,
-};
-export type Aliases=Map<string, Alias>;//{[key:string]: Alias};
+export type Aliases=Map<string, Module>;//{[key:string]: Alias};
+export interface IModuleCache {
+    add(m:Module):void;
+    delete(m:Module):void;
+    getByPath(path:string):Module|undefined;
+    getByURL(url:string):Module|undefined;
+}
