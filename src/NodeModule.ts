@@ -19,20 +19,24 @@ export class NodeModule {
     }
     getMain():SFile {
         const p=this.packageJsonFile();
-        let o=this.packageJson();
+        const o=this.packageJson();
         return p.sibling(o.main);
     }
-    static moduleType(jsfile:SFile):FileBasedModuleType {
+    moduleType():FileBasedModuleType {
+        const o=this.packageJson();
+        return o.type==="module"? "ES":"CJS";
+    }
+    static moduleTypeOfFile(jsfile:SFile):FileBasedModuleType {
         if (jsfile.ext()===".mjs") return "ES";
         if (jsfile.ext()===".cjs") return "CJS";
         const m=this.resolveFromParent(jsfile);
         if (!m) {return jsfile.ext()===".mjs"?"ES":"CJS";}
-        return m.packageJson().type==="module"?"ES":"CJS";
+        return m.moduleType();
     }
     static resolveFromParent(base:SFile) {
-        const pkg=base.closest("package.json");
+        const pkg=base.closest((f:SFile)=>f.rel("package.json").exists());
         if (!pkg) return undefined;
-        return new NodeModule(pkg.up()!);
+        return new NodeModule(pkg);
     }
     static resolve(name:string,base:SFile):NodeModule {
         for(let p:SFile|null=base;p;p=p.up()){

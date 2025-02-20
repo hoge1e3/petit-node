@@ -13,7 +13,7 @@ export class ModuleEntry {
         return /*this.isError()||*/this.file.lastUpdate()!==this.timestamp;
     }
     moduleType():FileBasedModuleType {
-        return NodeModule.moduleType(this.file);
+        return NodeModule.moduleTypeOfFile(this.file);
     }
     static fromFile(file:SFile):ModuleEntry {
         const newEntry=new ModuleEntry(file, file.text(), file.lastUpdate());
