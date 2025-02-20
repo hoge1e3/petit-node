@@ -1,4 +1,5 @@
 import pNode from "../dist/index.js";
+globalThis.pNode=pNode;
 export function loadFixture(dir,fixture) {
     for (let name in fixture) {
         const f=dir.rel(name);

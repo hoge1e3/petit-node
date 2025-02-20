@@ -1,12 +1,11 @@
 import { SFile } from "@hoge1e3/sfile";
-import { Aliases, IModuleCache, ModuleValue } from "./types";
+import { IModuleCache, Module, ModuleValue } from "./types";
 import * as FS from "@hoge1e3/fs2";
-import { Index, MultiIndexMap } from "./MultiIndexMap";
 import { getAliases } from "./alias";
-import { ModuleCache, ModuleEntry } from "./Module";
+import { CompiledCJS, ModuleEntry } from "./Module";
 
-type RequireFunc=((path:string)=>ModuleValue)&{deps:Set<CompiledCJS>};
-type Module={exports:ModuleValue};
+type RequireFunc=((path:string)=>ModuleValue)&{deps:Set<Module>};
+//type Module={exports:ModuleValue};
 
 /*class CompiledCJSCache extends MultiIndexMap<CompiledCJS> {
     //byURL: Index<string, CompiledCJS>;
@@ -51,24 +50,27 @@ export class CJSCompiler {
     //deps=new Set<CompiledCJS>();
     //file:SFile;
     //base:SFile;
-    aliases: IModuleCache;
+    cache: IModuleCache;
     constructor(
     ) {
         //this.file=entry.file;
         //this.base=entry.file.up()!;
-        this.aliases=getAliases();
+        this.cache=getAliases();
         //if (!this.base) throw new Error(this.file+" cannot create base.");
     }
     requireFunc(base:SFile):RequireFunc {
-        const deps=new Set<CompiledCJS>();
+        const deps=new Set<Module>();
         return Object.assign((path:string)=>{
-            if (this.aliases.has(path)) {
-                return this.aliases.get(path)!.value;
+            const module=this.cache.getByPath(path);// [A]
+            if (module) {
+                if (!module.value) throw new Error(`Cannot import ${path}(seems to be ESM) from ${base}(CJS)`);
+                deps.add(module);
+                return module.value;
             }
             const e=ModuleEntry.resolve(path,base);
             const c=this.compile(e);
             deps.add(c);
-            return c.exports;
+            return c.value;
         }, {deps});
     }
     requireArguments(file:SFile) {
@@ -78,12 +80,15 @@ export class CJSCompiler {
         const module={exports};
         const filename=file.path();
         const dirname=base.path();
-        return [require, exports, module, filename, dirname ] as [RequireFunc, ModuleValue, Module, string, string ];
+        return [require, exports, module, filename, dirname ] as 
+                [RequireFunc, ModuleValue, {exports:ModuleValue}, string, string ];
     }
     compile(entry: ModuleEntry):CompiledCJS {
         const file=entry.file;
-        let c=compiledCache.getByFile(file);
-        if (c) {
+        let c=this.cache.getByPath(file.path());
+        if (c instanceof CompiledCJS) {
+            // Why is it needed? Already checked in [A]?
+            // Because path in [A] may relative like './baz.js', while file.path() is absolute.
             return c;
         }
         const sourceURL=`//# sourceURL=file://${file.path()}`;
@@ -93,7 +98,7 @@ export class CJSCompiler {
         func(...args);
         const module=args[2];
         const compiled=new CompiledCJS( entry, [...args[0].deps], module.exports, funcSrc);
-        compiledCache.add(compiled);
+        this.cache.add(compiled);
         return compiled;
     }
     
@@ -119,5 +124,5 @@ export function require(porf:string|SFile, base?:SFile|string):ModuleValue {
     } else {
         fbase=base;
     }
-    return new CJSCompiler().compile(ModuleEntry.resolve(path,fbase)).exports;
+    return new CJSCompiler().compile(ModuleEntry.resolve(path,fbase)).value;
 }

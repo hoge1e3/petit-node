@@ -24,10 +24,11 @@ export type GlobalInfo={
     value: GlobalValue,
     url: string,
 };
-export type Aliases=Map<string, Module>;//{[key:string]: Alias};
-export interface IModuleCache {
+export type Aliases=IModuleCache;//Map<string, Module>;//{[key:string]: Alias};
+export interface IModuleCache extends Iterable<Module> {
     add(m:Module):void;
     delete(m:Module):void;
     getByPath(path:string):Module|undefined;
     getByURL(url:string):Module|undefined;
 }
+export type AliasHash={[key:string]:ModuleValue};

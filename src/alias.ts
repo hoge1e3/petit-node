@@ -1,17 +1,19 @@
-import { boot } from ".";
 import { uniqueName, valueToESCode } from "./ESModuleGenerator";
 import { BuiltinModule, ModuleCache } from "./Module";
 import { jsToBlobURL } from "./scriptTag";
-import { Aliases, ModuleValue } from "./types";
+import { Aliases, AliasHash, ModuleValue } from "./types";
 import { GlobalValue, GlobalInfo } from "./types";
 
 let gbl_info:GlobalInfo;
 export function getAliases(){
     return gbl_info.value.aliases;
 }
-export function addAliases(p:Aliases){
-    for (let [path, alias] of p) {
-        addAlias(path, alias.value);
+export function loadedModules() {
+    return getAliases();
+}
+export function addAliases(p:AliasHash){
+    for (let k in p) {
+        addAlias(k, p[k]);
     }
 }
 export function addAlias(path:string, value:ModuleValue, properties?:string[]) {
@@ -21,7 +23,7 @@ export function addAlias(path:string, value:ModuleValue, properties?:string[]) {
     const valueName=uniqueName([...keys,ginfName]);
     const jsCodeString=`
 import ${ginfName} from "${ginf.url}";
-let ${valueName}=${ginfName}.aliases.get("${path}").value;
+let ${valueName}=${ginfName}.aliases.getByPath("${path}").value;
 ${valueToESCode(valueName, value, keys)}
 `;
     let blobUrl = jsToBlobURL(jsCodeString);

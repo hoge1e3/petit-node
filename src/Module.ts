@@ -55,7 +55,7 @@ export class CompiledCJS implements Module{
     constructor(
         public entry: ModuleEntry,
         public dependencies: Module[],
-        public exports: ModuleValue,
+        public value: ModuleValue,
         public generatedCode: string,
     ){
         this.path=entry.file.path();
@@ -82,8 +82,11 @@ export class ModuleCache implements IModuleCache {
     private byPath=new Map<string, Module>;
     constructor() {
     }
+    [Symbol.iterator](): Iterator<Module> {
+        return this.byPath.values();
+    }
     add(m:Module) {
-        if (m.url) this.byURL.set(m.url,m);
+        if (m.url) this.byURL.set(m.url, m);
         this.byPath.set(m.path, m);
     }
     delete(m:Module) {
@@ -94,9 +97,9 @@ export class ModuleCache implements IModuleCache {
         c.url=u;
         this.byURL.set(c.url, c);
     }
-    getByFile(f:SFile) {
+    /*getByFile(f:SFile) {
         return this.getByPath(f.path());
-    }
+    }*/
     getByPath(path:string) {
         const e=this.byPath.get(path);
         return this.checkReload(e);

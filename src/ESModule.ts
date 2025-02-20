@@ -1,19 +1,18 @@
 //import { RawSourceMap, SourceMapConsumer } from "source-map";
 import {getAliases } from "./alias";
 import { convert } from "./convImport";
-import * as FS from "@hoge1e3/fs2";
-type SFile=FS.SFile;
-import { MultiIndexMap, Index } from "./MultiIndexMap";
-import { Alias, Aliases } from "./types";
-import { CompiledESModule, Module, ModuleEntry } from "./Module";
-export type ESModule=Alias|CompiledESModule;
-export function isAlias(e:ESModule): e is Alias {
+//type SFile=FS.SFile;
+import { Aliases, Module } from "./types";
+import { CompiledESModule, ModuleEntry } from "./Module";
+//export type ESModule=Alias|CompiledESModule;
+/*export function isAlias(e:ESModule): e is Alias {
     return !(e instanceof CompiledESModule);
 }
 export function getPath(e:ESModule) {
     if (isAlias(e)){return e.path;}
     else {return e.entry.file.path();}
-}
+}*/
+/*
 class ESModuleCache extends MultiIndexMap<ESModule> {
     private byURL: Index<string, ESModule>;
     private byPath: Index<string, ESModule>;
@@ -43,7 +42,7 @@ class ESModuleCache extends MultiIndexMap<ESModule> {
     }
 }
 export const cache=new ESModuleCache();
-
+*/
 class DependencyChecker {
     private dependencies: Map<string, Set<string>> = new Map();
     add(dependent: string, dependency: string): void {
@@ -115,8 +114,8 @@ export class ESModuleCompiler {
     }
     async compile(entry:ModuleEntry):Promise<CompiledESModule> {
         const path=entry.file.path();
-        const incache=cache.getByPath(path);
-        if(incache && !isAlias(incache)) {
+        const incache=getAliases().getByPath(path);
+        if(incache instanceof CompiledESModule) {
             if (this.oncachehit) await this.oncachehit({entry, byOtherCompiler:true});
             return incache;    
         }
@@ -132,15 +131,16 @@ export class ESModuleCompiler {
     async compilePromise(entry:ModuleEntry):Promise<CompiledESModule> {
         const aliases=this.aliases;
         if (this.oncompilestart) await this.oncompilestart({entry});
-        const deps=[] as ESModule[];
+        const deps=[] as Module[];
         const base=entry.file.up();
         if (!base) throw new Error(entry.file+" cannot create base.");
         const urlConverter={
             conv: async(path:string):Promise<string>=>{
-                if (aliases.has(path)) {
-                    const a=aliases.get(path)!;
-                    deps.push(a);
-                    return a.url;
+                const m=aliases.getByPath(path);
+                if (m?.url) {
+                    //const a=aliases.get(path)!;
+                    deps.push(m);
+                    return m.url;
                 }
                 if (path.match(/^https?:/)) {
                     return path;
@@ -155,7 +155,7 @@ export class ESModuleCompiler {
         };
         const compiled=(await convert(entry, urlConverter));
         if (this?.oncompiled) await this.oncompiled({module:compiled});
-        cache.add(compiled);
+        aliases.add(compiled);
         return compiled;
     }
 
@@ -163,14 +163,14 @@ export class ESModuleCompiler {
 
 export function traceInvalidImport(original:Error, start:CompiledESModule) {
     let targetURL:string|null=null;
-    const aliasList=getAliases().values();
-    for (let e of [...cache, ...aliasList]) {
+    for (let e of getAliases()) {
         const url=e.url;
+        if (!url) continue;
         const idx=original.message.indexOf(url);
         if (idx>=0) {
             targetURL=url;
             original.message=original.message.substring(0,idx)+
-                getPath(e)+
+                e.path+
                 original.message.substring(idx+url.length);
             break;
         }

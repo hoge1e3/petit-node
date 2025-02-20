@@ -4,8 +4,8 @@ import * as _FS from "@hoge1e3/fs2";
 import {EventHandler} from "@hoge1e3/events";
 import {convert} from "./convImport";
 import { /*liases as aliasStore,*/ initModuleGlobal, addAlias, addAliases,getAliases } from "./alias";
-import { CompiledESModule, ESModule, ESModuleCompiler, cache as cache, getPath, isAlias, traceInvalidImport } from "./ESModule";
-export { CompiledESModule, ESModuleCompiler} from "./ESModule";
+import { ESModuleCompiler, traceInvalidImport } from "./ESModule";
+export { ESModuleCompiler} from "./ESModule";
 import { NodeModule } from "./NodeModule";
 export { NodeModule } from "./NodeModule";
 import { gen as genfs } from "./fsgen";
@@ -14,10 +14,10 @@ import * as chai from "chai";
 import * as assert from "@hoge1e3/assert";// Replace with assert polyfill, chai.assert is slow.
 import * as util from "@hoge1e3/util";
 import * as sfile from "@hoge1e3/sfile";
-import { Aliases, ModuleValue } from "./types";
+import { Aliases, AliasHash, Module, ModuleValue } from "./types";
 export {require, CJSCompiler} from "./CommonJS";
 import {require, CJSCompiler} from "./CommonJS";
-import { ModuleEntry } from "./Module";
+import { CompiledCJS, CompiledESModule, ModuleEntry } from "./Module";
 
 type SFile=_FS.SFile;
 declare let globalThis:any;
@@ -29,12 +29,12 @@ function mod2obj<T extends object>(o:T):T&{default:T}{
     return {...res, default:res};
 }
 export const FS=mod2obj(_FS);
-type CreateScriptURLOption={
+/*type CreateScriptURLOption={
     deps:SFile[]|undefined,
 };
 type CreateURLOption=CreateScriptURLOption&{
     blob:Blob|undefined,
-}
+}*/
 /*type URLs={
     url: string, path:string, lastUpdate:number,
     deps: SFile[],
@@ -81,7 +81,7 @@ dupNodePrefix(["fs","os","path","process","assert","util"]);
 type Initializer=(p:{FS:typeof FS, pNode: typeof pNode })=>Promise<any>;
 
 type BootOptions={
-    aliases: Aliases|undefined,
+    aliases: AliasHash|undefined,
     init: Initializer|undefined,
 };
 export async function boot(options:BootOptions={
@@ -125,11 +125,13 @@ export function resolveEntry(path: string|SFile ,base?:string|SFile):ModuleEntry
 }
 export async function importModule(path: SFile):Promise<ModuleValue>;
 export async function importModule(path: string, base: string|SFile):Promise<ModuleValue>;
-export async function importModule(path: string|SFile ,base?:string|SFile):Promise<ModuleValue>{
+export async function importModule(path: string|SFile, base?:string|SFile):Promise<ModuleValue>{
     let ent;
     const aliases=getAliases();
-    if (typeof path==="string" && aliases.has(path)) {
-        return aliases.get(path)!.value;
+    const _path=typeof path==="string"?path:path.path();
+    const incache=aliases.getByPath(_path);
+    if (incache?.value) {
+        return incache.value;
     } else if (base) {
         if (typeof path!=="string") throw invalidSpec();
         ent=resolveEntry(path,base);
@@ -175,19 +177,19 @@ try{
 } catch(e){
 }
 
-export function* loadedModules():Generator<ESModule> {
-    for(var entry of cache){
-        yield entry;
-    }
+export function loadedModules() {
+    return getAliases();
 }
 export function urlToPath(url:string):string {
-    let ent=cache.getByURL(url);
+    let ent=loadedModules().getByURL(url);
     if (!ent) return url;
-    return getPath(ent);
+    return ent.path;
 }
 export function urlToFile(url:string):SFile {
-    let mod=cache.getByURL(url);
+    let mod=loadedModules().getByURL(url);
     if (!mod) throw new Error(`${url} is not loaded.`);
-    if (isAlias(mod)) throw new Error(`${url} is an Alias(${getPath(mod)}) that is not associated to a file.`);
-    return mod.entry.file;
+    if (mod instanceof CompiledESModule || mod instanceof CompiledCJS) {
+        return mod.entry.file;
+    }
+    throw new Error(`${url}(${mod.path}) is not associated to a file.`);
 }
