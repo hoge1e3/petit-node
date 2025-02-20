@@ -1,7 +1,7 @@
 import { SFile } from "@hoge1e3/sfile";
 import { NodeModule } from "./NodeModule";
 import * as FS from "@hoge1e3/fs2";
-import { IModuleCache, Module, ModuleValue } from "./types";
+import { FileBasedModuleType, IModuleCache, Module, ModuleValue } from "./types";
 export class ModuleEntry {
     constructor(
         public file: SFile,
@@ -11,6 +11,9 @@ export class ModuleEntry {
     }
     _shouldReload():boolean {
         return /*this.isError()||*/this.file.lastUpdate()!==this.timestamp;
+    }
+    moduleType():FileBasedModuleType {
+        return NodeModule.moduleType(this.file);
     }
     static fromFile(file:SFile):ModuleEntry {
         const newEntry=new ModuleEntry(file, file.text(), file.lastUpdate());
@@ -29,7 +32,11 @@ export class ModuleEntry {
         return ModuleEntry.fromFile(m.getMain());
     }
 }
-export class CompiledESModule implements Module {
+export interface FileBasedModule extends Module {
+    readonly type:FileBasedModuleType;
+    entry:ModuleEntry;
+}
+export class CompiledESModule implements FileBasedModule {
     readonly type="ES";
     public path:string;
     constructor(
@@ -48,7 +55,7 @@ export class CompiledESModule implements Module {
         URL.revokeObjectURL(this.url);
     }
 }
-export class CompiledCJS implements Module{
+export class CompiledCJS implements FileBasedModule{
     readonly type="CJS";
     public path:string;
     public url:string|undefined;
@@ -93,9 +100,11 @@ export class ModuleCache implements IModuleCache {
         if (m.url) this.byURL.delete(m.url);
         this.byPath.delete(m.path);
     }
-    setURL(c:CompiledCJS, u:string){
-        c.url=u;
-        this.byURL.set(c.url, c);
+    reload(m:Module){
+        if (this.getByPath(m.path)!==m) throw new Error(`${m.path} is not exists in cache or deprecated.`);
+        if (m.url) {
+            this.byURL.set(m.url, m);
+        }
     }
     /*getByFile(f:SFile) {
         return this.getByPath(f.path());

@@ -1,48 +1,11 @@
 //import { RawSourceMap, SourceMapConsumer } from "source-map";
-import {getAliases } from "./alias";
+import {addURL, getAliases } from "./alias";
 import { convert } from "./convImport";
 //type SFile=FS.SFile;
 import { Aliases, Module } from "./types";
 import { CompiledESModule, ModuleEntry } from "./Module";
-//export type ESModule=Alias|CompiledESModule;
-/*export function isAlias(e:ESModule): e is Alias {
-    return !(e instanceof CompiledESModule);
-}
-export function getPath(e:ESModule) {
-    if (isAlias(e)){return e.path;}
-    else {return e.entry.file.path();}
-}*/
-/*
-class ESModuleCache extends MultiIndexMap<ESModule> {
-    private byURL: Index<string, ESModule>;
-    private byPath: Index<string, ESModule>;
-    constructor() {
-        super();
-        this.byURL=this.newIndex((item)=>item.url);
-        this.byPath=this.newIndex((item)=>getPath(item));        
-    }
-    getByFile(f:SFile) {
-        return this.getByPath(f.path());
-    }
-    getByPath(path:string) {
-        const e=this.byPath.get(path);
-        return this.checkReload(e);
-    }
-    getByURL(url:string) {
-        const e=this.byURL.get(url);
-        return this.checkReload(e);
-    }
-    private checkReload(e:ESModule|undefined) {
-        if (e && !isAlias(e) && e.shouldReload()) {
-            e.dispose();
-            this.delete(e);
-            return undefined;
-        }
-        return e;
-    }
-}
-export const cache=new ESModuleCache();
-*/
+import { CJSCompiler } from "./CommonJS";
+
 class DependencyChecker {
     private dependencies: Map<string, Set<string>> = new Map();
     add(dependent: string, dependency: string): void {
@@ -77,22 +40,6 @@ class DependencyChecker {
         return undefined;
     }
 }
-/*export class CompiledESModule {
-    constructor(
-        public entry: ModuleEntry,
-        public dependencies: ESModule[],
-        public url: string,
-        public generatedCode: string,
-    ){
-    }
-    shouldReload():boolean {
-        if (this.entry._shouldReload()) return true;
-        return this.dependencies.some((dep)=>!isAlias(dep) && dep.shouldReload());
-    }
-    dispose(){
-        URL.revokeObjectURL(this.url);
-    }
-}*/
 type CompiledEvent={
     module: Module,
 };
@@ -103,6 +50,7 @@ type CompileStartEvent={
 export class ESModuleCompiler {
     depChecker= new DependencyChecker();
     promiseCache=new Map<string, Promise<CompiledESModule>>();
+    cjsCompiler?: CJSCompiler;
     constructor(
         public aliases: Aliases,
         public oncompilestart?:(e:CompileStartEvent)=>Promise<void>,
@@ -111,6 +59,10 @@ export class ESModuleCompiler {
     }
     static create(context:Partial<ESModuleCompiler>={}):ESModuleCompiler {
         return new ESModuleCompiler(context.aliases||getAliases(), context.oncompilestart, context.oncompiled, context.oncachehit);
+    }
+    getCJSCompiler():CJSCompiler {
+        this.cjsCompiler=this.cjsCompiler||new CJSCompiler();
+        return this.cjsCompiler;
     }
     async compile(entry:ModuleEntry):Promise<CompiledESModule> {
         const path=entry.file.path();
@@ -147,9 +99,16 @@ export class ESModuleCompiler {
                 }
                 const e=ModuleEntry.resolve(path,base);
                 this.depChecker.add(entry.file.path(), e.file.path());
-                const c=await this.compile(e);
+                let c,url;
+                if(e.moduleType()==="CJS") {
+                    c=this.getCJSCompiler().compile(e);
+                    url=addURL(c);
+                }else{
+                    c=await this.compile(e);
+                    url=c.url;
+                }
                 deps.push(c);
-                return c.url;
+                return url;
             },
             deps,
         };

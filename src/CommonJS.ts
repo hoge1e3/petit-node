@@ -7,42 +7,6 @@ import { CompiledCJS, ModuleEntry } from "./Module";
 type RequireFunc=((path:string)=>ModuleValue)&{deps:Set<Module>};
 //type Module={exports:ModuleValue};
 
-/*class CompiledCJSCache extends MultiIndexMap<CompiledCJS> {
-    //byURL: Index<string, CompiledCJS>;
-    byPath: Index<string, CompiledCJS>;
-    constructor() {
-        super();
-        //this.byURL=this.newIndex((item)=>item.url);
-        this.byPath=this.newIndex((item)=>item.entry.file.path());        
-    }
-    getByFile(f:SFile) {
-        const c=this.byPath.get(f.path());
-        if (c) {
-            if(!c.shouldReload()) return c;
-            c.dispose();
-            this.delete(c);    
-        }
-        return undefined;
-    }
-}
-export const compiledCache=new CompiledCJSCache();
-*/
-/*export class CompiledCJS {
-    constructor(
-        public entry: ModuleEntry,
-        public dependencies: CompiledCJS[],
-        public exports: ModuleValue,
-        public generatedCode: string,
-    ){
-    }
-    shouldReload():boolean {
-        if (this.entry._shouldReload()) return true;
-        return this.dependencies.some((dep)=>dep.shouldReload());
-    }
-    dispose(){
-        //URL.revokeObjectURL(this.url);
-    }
-}*/
 export class CJSCompiler {
     static create(): CJSCompiler {
         return new CJSCompiler();

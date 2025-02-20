@@ -6,35 +6,36 @@ import pNode from "../dist/index.js";
 window.prt=prt;
 const fixture={
     "main.js": `
-import {require} from "petit-node";
-require("/node/cjs.js");
+import "./cjs.cjs";
+import {inc} from "./foo.cjs";
+prt(inc());
     `,
-    "cjs.js": `
-const foo=require("./foo.js");
-const {inc}=require("./bar.js");
+    "cjs.cjs": `
+const foo=require("./foo.cjs");
+const {inc}=require("./bar.cjs");
 prt(foo.inc());
 prt(inc());
 `,
-    "foo.js": `
-const {inc}=require("./baz.js");
+    "foo.cjs": `
+const {inc}=require("./baz.cjs");
 exports.inc=()=>"foo: "+inc();
 `,
-    "bar.js": `
-const baz=require("./baz.js");
+    "bar.cjs": `
+const baz=require("./baz.cjs");
 exports.inc=()=>"bar: "+baz.inc();
 `,
-    "baz.js": `
+    "baz.cjs": `
 let c=0;
 exports.inc=()=>c++;
-prt("baz.js loaded");
+prt("baz.cjs loaded");
 `,
 };
 main(fixture);
 await sleep();
-pNode.FS.get("/node/baz.js").text(`
+pNode.FS.get("/node/baz.cjs").text(`
 let c=0;
 exports.inc=()=>c+=2;
-prt("baz.js reloaded");
+prt("baz.cjs reloaded");
 `);
 await pNode.import(pNode.FS.get("/node/main.js"));
 //pNode.require("/node/cjs.js");

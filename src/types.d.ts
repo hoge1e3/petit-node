@@ -6,7 +6,8 @@
 declare type Content={
     toURL():string;
 }*/
-export type ModuleType="ES"|"CJS"|"Builtin"|"External";
+export type FileBasedModuleType="ES"|"CJS";
+export type ModuleType=FileBasedModuleType|"Builtin"|"External";
 export interface Module{
     type: ModuleType,
     path: string,
@@ -28,6 +29,7 @@ export type Aliases=IModuleCache;//Map<string, Module>;//{[key:string]: Alias};
 export interface IModuleCache extends Iterable<Module> {
     add(m:Module):void;
     delete(m:Module):void;
+    reload(m:Module):void;
     getByPath(path:string):Module|undefined;
     getByURL(url:string):Module|undefined;
 }

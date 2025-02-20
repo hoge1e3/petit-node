@@ -1,5 +1,6 @@
 import { SFile } from "@hoge1e3/sfile";
 import * as FS from "@hoge1e3/fs2";
+import { FileBasedModuleType } from "./types";
 const node_modules="node_modules/";
 const package_json="package.json";
 type PackageJson={
@@ -21,12 +22,12 @@ export class NodeModule {
         let o=this.packageJson();
         return p.sibling(o.main);
     }
-    static isESModule(jsfile:SFile) {
-        if (jsfile.ext()===".mjs") return true;
-        if (jsfile.ext()===".cjs") return false;
+    static moduleType(jsfile:SFile):FileBasedModuleType {
+        if (jsfile.ext()===".mjs") return "ES";
+        if (jsfile.ext()===".cjs") return "CJS";
         const m=this.resolveFromParent(jsfile);
-        if (!m) {return jsfile.ext()===".mjs";}
-        return m.packageJson().type==="module";
+        if (!m) {return jsfile.ext()===".mjs"?"ES":"CJS";}
+        return m.packageJson().type==="module"?"ES":"CJS";
     }
     static resolveFromParent(base:SFile) {
         const pkg=base.closest("package.json");

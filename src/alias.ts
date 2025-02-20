@@ -1,7 +1,7 @@
 import { uniqueName, valueToESCode } from "./ESModuleGenerator";
 import { BuiltinModule, ModuleCache } from "./Module";
 import { jsToBlobURL } from "./scriptTag";
-import { Aliases, AliasHash, ModuleValue } from "./types";
+import { Aliases, AliasHash, Module, ModuleValue } from "./types";
 import { GlobalValue, GlobalInfo } from "./types";
 
 let gbl_info:GlobalInfo;
@@ -15,6 +15,24 @@ export function addAliases(p:AliasHash){
     for (let k in p) {
         addAlias(k, p[k]);
     }
+}
+export function addURL(module:Module, properties?:string[]) {
+    const ginf=getGlobalInfo();
+    const value=module.value;
+    if (value==null) throw new Error("Value is not set: "+module.path);
+    if (module.url!=null) throw new Error("URL is already set: "+module.path);
+    const keys=properties||Object.keys(value as any);
+    const ginfName=uniqueName(keys);
+    const valueName=uniqueName([...keys,ginfName]);
+    const jsCodeString=`
+import ${ginfName} from "${ginf.url}";
+let ${valueName}=${ginfName}.aliases.getByPath("${module.path}").value;
+${valueToESCode(valueName, value, keys)}
+`;
+    let blobUrl = jsToBlobURL(jsCodeString);
+    module.url=blobUrl;
+    getAliases().reload(module);
+    return blobUrl;
 }
 export function addAlias(path:string, value:ModuleValue, properties?:string[]) {
     const ginf=getGlobalInfo();
