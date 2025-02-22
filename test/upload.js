@@ -77,7 +77,7 @@ const handlers={
     },
     async oncompiled({module}) {
         await timeout(0);
-        console.log("Compile complete ",module.file.path());
+        console.log("Compile complete ",module.entry.file.path());
     },
     async oncachehit({entry}) {
         await timeout(0);
