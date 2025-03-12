@@ -5,6 +5,7 @@ import {main, prt, sleep} from "./setup.js";
 import pNode from "../dist/index.js";
 window.prt=prt;
 const fixture={
+    "package.json":`{"type":"module"}`,
     "main.js": `
 import "./cjs.cjs";
 import {inc} from "./foo.cjs";

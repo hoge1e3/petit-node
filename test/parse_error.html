@@ -3,6 +3,7 @@
 import pNode from "../dist/index.js";
 import {main,prt} from "./setup.js";
 const fixture={
+    "package.json":`{"type":"module"}`,
     "main.js": `
 import {foo} from "./my_module.js";
 export function prt(...args){

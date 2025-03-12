@@ -5,6 +5,7 @@ import {main,prt} from "./setup.js";
 window.pNode=pNode;
 window.prt=prt;
 const fixture={
+    "package.json":`{"type":"module"}`,
     "main.js": `
 import {readfileSync} from "fs";
 prt(readfileSync("/node/main.js"));

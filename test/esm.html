@@ -4,6 +4,7 @@
 import {main, prt} from "./setup.js";
 import pNode from "../dist/index.js";
 const fixture={
+    "package.json":`{"type":"module"}`,
     "main.js": `
 import {foo,bar} from "./my_module.js";
 foo(bar(21));
