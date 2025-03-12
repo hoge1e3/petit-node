@@ -48,7 +48,7 @@ export async function convert(entry: ModuleEntry,urlConverter:URLConverter): Pro
     const originalSource = source.value;
     const convertedSource = urlConverter.conv(originalSource as string);
     replPromises.push(convertedSource.then((s:string)=>({
-      to: JSON.stringify(s),
+      to: `/*${JSON.stringify(originalSource)}*/${JSON.stringify(s)}`,
       range: range.slice()
     })));
   };
