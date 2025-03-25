@@ -1,10 +1,10 @@
 //import { RawSourceMap, SourceMapConsumer } from "source-map";
-import {addURL, getAliases } from "./alias";
-import { convert } from "./convImport";
+import {addURL, getAliases } from "./alias.js";
+import { convert } from "./convImport.js";
 //type SFile=FS.SFile;
 import { Aliases, Module } from "./types";
-import { CompiledESModule, ModuleEntry } from "./Module";
-import { CJSCompiler } from "./CommonJS";
+import { CompiledESModule, ModuleEntry } from "./Module.js";
+import { CJSCompiler } from "./CommonJS.js";
 
 class DependencyChecker {
     private dependencies: Map<string, Set<string>> = new Map();

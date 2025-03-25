@@ -2,22 +2,22 @@
 
 import * as _FS from "@hoge1e3/fs2";
 import {EventHandler} from "@hoge1e3/events";
-import {convert} from "./convImport";
-import { /*liases as aliasStore,*/ initModuleGlobal, addAlias, addAliases,getAliases } from "./alias";
-import { ESModuleCompiler, traceInvalidImport } from "./ESModule";
-export { ESModuleCompiler} from "./ESModule";
-import { NodeModule } from "./NodeModule";
-export { NodeModule } from "./NodeModule";
-import { gen as genfs } from "./fsgen";
+import {convert} from "./convImport.js";
+import { /*liases as aliasStore,*/ initModuleGlobal, addAlias, addAliases,getAliases } from "./alias.js";
+import { ESModuleCompiler, traceInvalidImport } from "./ESModule.js";
+export { ESModuleCompiler} from "./ESModule.js";
+import { NodeModule } from "./NodeModule.js";
+export { NodeModule } from "./NodeModule.js";
+import { gen as genfs } from "./fsgen.js";
 import * as espree from 'espree';
 import * as chai from "chai";
-import * as assert from "@hoge1e3/assert";// Replace with assert polyfill, chai.assert is slow.
+import assert from "@hoge1e3/assert";// Replace with assert polyfill, chai.assert is slow.
 import * as util from "@hoge1e3/util";
 import * as sfile from "@hoge1e3/sfile";
 import { Aliases, AliasHash, Module, ModuleValue } from "./types";
-export {require, CJSCompiler} from "./CommonJS";
-import {require, CJSCompiler} from "./CommonJS";
-import { CompiledCJS, CompiledESModule, ModuleEntry } from "./Module";
+export {require, CJSCompiler} from "./CommonJS.js";
+import {require, CJSCompiler} from "./CommonJS.js";
+import { CompiledCJS, CompiledESModule, ModuleEntry } from "./Module.js";
 
 type SFile=_FS.SFile;
 declare let globalThis:any;

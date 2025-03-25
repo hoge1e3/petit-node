@@ -4,8 +4,8 @@ import * as espree from 'espree';
 import { simple, SimpleVisitors } from "acorn-walk";
 //import { SourceMapGenerator } from "source-map";
 //import { Content } from "@hoge1e3/fs2";
-import { CompiledESModule} from "./Module";
-import { ModuleEntry } from "./Module";
+import { CompiledESModule} from "./Module.js";
+import { ModuleEntry } from "./Module.js";
 import { Module } from "./types";
 
 

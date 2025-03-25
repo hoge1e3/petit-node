@@ -1,5 +1,6 @@
 /*global globalThis*/
-import pNode from "../dist/index.js";
+const PNODE_URL="../dist/index.js";
+const pNode= await import(PNODE_URL);
 import "./console.js";
 const timeout=(t)=>new Promise(s=>setTimeout(s,t));
 globalThis.pNode=pNode;
@@ -50,7 +51,7 @@ function init(){
     initCss();
     console.log("init");
     pNode.boot({
-        init(o){
+        async init(o){
             globalThis.FS=FS=o.FS.default;
             FS.os={
                 importModule:pNode.importModule,
@@ -60,7 +61,10 @@ function init(){
                 convertStack:pNode.convertStack,
                 loadScriptTag,
             };
-            FS.mount("/tmp/","ram");
+            FS.setEnv("PNODE_URL",PNODE_URL);
+            FS.setEnv("boot","/tmp/boot/");
+            await FS.mountAsync("/tmp/","ram");
+            await FS.mountAsync("/idb/","idb");
             afterInit(o);
         }
     });
@@ -115,16 +119,22 @@ function afterInit({FS}){
                     rmbtn();
                     await console.log("start",main);
                     await timeout(10);
-                    await pNode.importModule(FS.get(main));
-                    /*const e=pNode.resolveEntry(FS.get(main));
-                    const mod=await e.compile(handlers);
-                    await import(mod.url);*/
+                    const mainF=FS.get(main);
+                    FS.setEnv("boot",mainF);
+                    await pNode.importModule(mainF);
                 },auto);
             }
         }
     }
 }
-addEventListener("load",init);
+function onReady(callback) {
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", callback);
+    } else {
+        callback();
+    }
+}
+onReady(init);
 function btn(c,a,auto){
     let b=document.createElement("button");
     b.classList.add("menubtn");

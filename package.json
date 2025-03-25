@@ -5,9 +5,11 @@
   "description": "Subset of node.js running in browser",
   "main": "dist/index.js",
   "scripts": {
-    "link": "npm link @hoge1e3/fs2 @hoge1e3/sfile petit-fs @hoge1e3/assert @hoge1e3/util",
-    "build-dev": "npx webpack --mode=development",
-    "build": "npx webpack --mode=production",
+    "tsc": "npx tsc",
+    "webpack-dev": "npx webpack --mode=development",
+    "webpack": "npx webpack --mode=production",
+    "build": "npx tsc && npx webpack",
+    "build-dev": "npx tsc && npm run webpack-dev",
     "test": "npx http-server -o test/index.html"
   },
   "repository": {

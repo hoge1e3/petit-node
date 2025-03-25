@@ -1,6 +1,6 @@
-import { uniqueName, valueToESCode } from "./ESModuleGenerator";
-import { BuiltinModule, ModuleCache } from "./Module";
-import { jsToBlobURL } from "./scriptTag";
+import { uniqueName, valueToESCode } from "./ESModuleGenerator.js";
+import { BuiltinModule, ModuleCache } from "./Module.js";
+import { jsToBlobURL } from "./scriptTag.js";
 import { Aliases, AliasHash, Module, ModuleValue } from "./types";
 import { GlobalValue, GlobalInfo } from "./types";
 

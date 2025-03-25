@@ -1,5 +1,5 @@
 import { SFile } from "@hoge1e3/sfile";
-import { NodeModule } from "./NodeModule";
+import { NodeModule } from "./NodeModule.js";
 import * as FS from "@hoge1e3/fs2";
 import { FileBasedModuleType, IModuleCache, Module, ModuleValue } from "./types";
 export class ModuleEntry {

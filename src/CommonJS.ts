@@ -1,8 +1,8 @@
 import { SFile } from "@hoge1e3/sfile";
 import { IModuleCache, Module, ModuleValue } from "./types";
 import * as FS from "@hoge1e3/fs2";
-import { getAliases } from "./alias";
-import { CompiledCJS, ModuleEntry } from "./Module";
+import { getAliases } from "./alias.js";
+import { CompiledCJS, ModuleEntry } from "./Module.js";
 
 type RequireFunc=((path:string)=>ModuleValue)&{deps:Set<Module>};
 //type Module={exports:ModuleValue};
