@@ -3,7 +3,7 @@
 import * as _FS from "@hoge1e3/fs2";
 import {EventHandler} from "@hoge1e3/events";
 import {convert} from "./convImport.js";
-import { /*liases as aliasStore,*/ initModuleGlobal, addAlias, addAliases,getAliases } from "./alias.js";
+import { /*liases as aliasStore,*/ initModuleGlobal, addAlias, addAliases,getAliases, addURL } from "./alias.js";
 import { ESModuleCompiler, traceInvalidImport } from "./ESModule.js";
 export { ESModuleCompiler} from "./ESModule.js";
 import { NodeModule } from "./NodeModule.js";
@@ -18,6 +18,7 @@ import { Aliases, AliasHash, Module, ModuleValue } from "./types";
 export {require, CJSCompiler} from "./CommonJS.js";
 import {require, CJSCompiler} from "./CommonJS.js";
 import { CompiledCJS, CompiledESModule, ModuleEntry } from "./Module.js";
+import { jsToBlobURL } from "./scriptTag.js";
 
 type SFile=_FS.SFile;
 declare let globalThis:any;
@@ -192,4 +193,36 @@ export function urlToFile(url:string):SFile {
         return mod.entry.file;
     }
     throw new Error(`${url}(${mod.path}) is not associated to a file.`);
+}
+export function addPrecompiledModule(path:string, compiledCode:string|Function, dependencies:string[]):string {
+    const file=FS.get(path);
+    const aliases=getAliases();
+    const m=aliases.getByPath(path);
+    if (m?.url) return m.url;
+    if(typeof compiledCode==="function") {
+        const base=file.up()!;
+        const require=(path:string)=>{
+            const builtin=aliases.getByPath(path);
+            if (builtin?.value) return builtin.value;
+            const entry=ModuleEntry.resolve(path, base);
+            const module=aliases.getByPath(entry.file.path());
+            if (module?.value) return module.value;
+            throw new Error(`Cannot resolve ${path}`);
+        };
+        const exports={} as ModuleValue, module={exports}, filename=file.path(), dirname=base.path();
+        const args=[require, exports, module, filename, dirname ];
+        const value=compiledCode(...args);
+        const entry=ModuleEntry.fromFile(file);
+        const deps=dependencies.map(path=>aliases.getByPath(path)!);
+        const res=new CompiledCJS(entry, deps, value, "/*preCompiledModule*/"+compiledCode);
+        aliases.add(res);
+        return res.url || addURL(res);
+    } else {
+        const entry=ModuleEntry.fromFile(file);
+        const deps=dependencies.map(path=>aliases.getByPath(path)!);
+        const url=jsToBlobURL(compiledCode);
+        const res=new CompiledESModule(entry, deps, url, compiledCode);
+        aliases.add(res);
+        return url;
+    }
 }

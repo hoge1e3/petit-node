@@ -53,6 +53,9 @@ export class CJSCompiler {
         if (c instanceof CompiledCJS) {
             // Why is it needed? Already checked in [A]?
             // Because path in [A] may relative like './baz.js', while file.path() is absolute.
+            // So Why not make './baz.js' absolute at [A]?
+            // in [A], it may be npm or built-in path like "fs" or "assert". 
+            // While here is always file.
             return c;
         }
         const sourceURL=`//# sourceURL=file://${file.path()}`;
