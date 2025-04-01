@@ -46,6 +46,7 @@ type CompiledEvent={
 type CompileStartEvent={
     entry: ModuleEntry,
     byOtherCompiler?: boolean,
+    isCJS?: boolean,
 };
 export class ESModuleCompiler {
     depChecker= new DependencyChecker();
@@ -101,6 +102,7 @@ export class ESModuleCompiler {
                 this.depChecker.add(entry.file.path(), e.file.path());
                 let c,url;
                 if(e.moduleType()==="CJS") {
+                    if (this.oncompilestart) await this.oncompilestart({entry,isCJS:true});
                     c=this.getCJSCompiler().compile(e);
                     url=addURL(c);
                 }else{

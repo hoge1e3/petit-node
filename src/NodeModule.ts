@@ -39,6 +39,7 @@ export class NodeModule {
         return new NodeModule(pkg);
     }
     static resolve(name:string,base:SFile):NodeModule {
+        base=base.resolveLink();
         for(let p:SFile|null=base;p;p=p.up()){
             let n=p.rel(node_modules);
             if(n.exists()){
