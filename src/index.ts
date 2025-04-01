@@ -29,7 +29,17 @@ function mod2obj<T extends object>(o:T):T&{default:T}{
     }
     return {...res, default:res};
 }
-export const FS=mod2obj(_FS);
+function wrapGet(FS:typeof _FS):typeof _FS {
+    const orig=FS.get.bind(FS);
+    FS.get=(path:string):SFile=>{
+        if (path.startsWith("blob:")) {
+            path=urlToPath(path);
+        }
+        return orig(path);
+    }
+    return FS;
+}
+export const FS=wrapGet(mod2obj(_FS));
 /*type CreateScriptURLOption={
     deps:SFile[]|undefined,
 };
