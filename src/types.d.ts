@@ -6,6 +6,27 @@
 declare type Content={
     toURL():string;
 }*/
+import {SFile} from "@hoge1e3/fs2";
+export type TFS={
+    get(path:string):SFile;
+    getEnv():typeof process.env;
+    getEnv(name:string):string|undefined;
+    setEnv(name:string, value:string):void;
+    PathUtil: typeof import("@hoge1e3/fs2").PathUtil;
+    zip: typeof import("@hoge1e3/fs2").zip;
+    SFile: typeof import("@hoge1e3/fs2").SFile;
+    expand: typeof import("@hoge1e3/fs2").expand;
+    expandPath: typeof import("@hoge1e3/fs2").expandPath;
+    resolve: typeof import("@hoge1e3/fs2").resolve;
+};
+export type FSDEPS={
+    path:typeof import("node:path"),
+    fs:typeof import("node:fs"),
+    //os:typeof import("node:os"),
+    //process:typeof import("node:process"),
+    Buffer:typeof import("node:buffer").Buffer,
+    //JSZip:typeof import("jszip"),
+}
 export type FileBasedModuleType="ES"|"CJS";
 export type ModuleType=FileBasedModuleType|"Builtin"|"External";
 export interface Module{

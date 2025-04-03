@@ -3,7 +3,7 @@
   "name": "petit-node",
   "version": "1.3.4",
   "description": "Subset of node.js running in browser",
-  "main": "dist/index.js",
+  "main": "js/index.js",
   "scripts": {
     "tsc": "npx tsc",
     "webpack-dev": "npx webpack --mode=development",

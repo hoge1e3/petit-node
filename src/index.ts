@@ -14,22 +14,86 @@ import * as chai from "chai";
 import assert from "@hoge1e3/assert";// Replace with assert polyfill, chai.assert is slow.
 import * as util from "@hoge1e3/util";
 import * as sfile from "@hoge1e3/sfile";
-import { Aliases, AliasHash, Module, ModuleValue } from "./types";
+import { Aliases, AliasHash, Module, ModuleValue, TFS } from "./types";
 export {require, CJSCompiler} from "./CommonJS.js";
 import {require, CJSCompiler} from "./CommonJS.js";
 import { CompiledCJS, CompiledESModule, ModuleEntry } from "./Module.js";
 import { jsToBlobURL } from "./scriptTag.js";
+import { JSZip, PathUtil, zip } from "@hoge1e3/fs2";
 
-type SFile=_FS.SFile;
+const core=setupCore();
 declare let globalThis:any;
-function mod2obj<T extends object>(o:T):T&{default:T}{
-    const res={} as T;
-    for (let k in o) {
-        res[k]=o[k];
+//declare let global:any;
+type SFile=sfile.SFile;
+function setupCore(){
+    if (typeof globalThis!=="undefined" && globalThis.__nwpolyfill) {
+        console.log("Using __nwpolyfill");
+        const {fs,path,os}=globalThis.__nwpolyfill;
+        const FS=new sfile.FileSystemFactory({fs, path, Buffer}) as unknown as TFS;
+        FS.getEnv=function getEnv(name?:string): any {
+            if (name == null) {
+                return process.env;
+            }
+            return process.env[name];
+        };
+        FS.setEnv=function setEnv(name:string, value:string){
+            process.env[name]=value;
+        };
+        FS.expand=function expand(str:string) {
+            return str.replace(/\$\{([a-zA-Z0-9_]+)\}/g, function (a, key) {
+                return FS.getEnv(key)||"";
+            });
+        }
+        FS.expandPath=function expandPath(path:string) {
+            path = FS.expand(path);
+            path = path.replace(/\/+/g, "/");
+            path = path.replace(/^[a-z][a-z]+:\//, (r)=>`${r}/`);
+            return path;
+        }
+        FS.resolve=function resolve(path:SFile|string, base?:SFile|string){ 
+            if (sfile.SFile.is(path)) return path;
+            path = FS.expandPath(path);
+            if (base && !PathUtil.isAbsolutePath(path)) {
+                if (typeof base==="string"){
+                    base = FS.expandPath(base);
+                    return FS.get(base).rel(path);    
+                } else {
+                    return base.rel(path);
+                }
+            }
+            return FS.get(path);
+        };
+        FS.PathUtil=PathUtil;
+        FS.zip=zip;
+        FS.SFile=sfile.SFile;
+        return {
+            FS,
+            os,
+            fs,
+            path,
+            process,
+        };
+    } else {
+        return {
+            FS:_FS as TFS, 
+            ..._FS.nodePolyfill,
+        };
     }
-    return {...res, default:res};
 }
-function wrapGet(FS:typeof _FS):typeof _FS {
+function mod2obj<T extends object>(o:T):T&{default:T}{
+    try {
+        const res=o as T&{default:T};
+        res.default=o;
+        return res;
+    } catch(e) {
+        const res={} as T;
+        for (let k in o) {
+            res[k]=o[k];
+        }
+        return {...res, default:res};    
+    }
+}
+function wrapGet(FS:TFS):TFS {
     const orig=FS.get.bind(FS);
     FS.get=(path:string):SFile=>{
         if (path.startsWith("blob:")) {
@@ -39,17 +103,7 @@ function wrapGet(FS:typeof _FS):typeof _FS {
     }
     return FS;
 }
-export const FS=wrapGet(mod2obj(_FS));
-/*type CreateScriptURLOption={
-    deps:SFile[]|undefined,
-};
-type CreateURLOption=CreateScriptURLOption&{
-    blob:Blob|undefined,
-}*/
-/*type URLs={
-    url: string, path:string, lastUpdate:number,
-    deps: SFile[],
-}*/
+export const FS=wrapGet(mod2obj(core.FS));
 
 const thisUrl=()=>(
     new URL(import.meta.url));
@@ -62,7 +116,7 @@ let pNode={
     ESModule: CompiledESModule, NodeModule, addAlias, addAliases,getAliases,
     ESModuleCompiler, CJSCompiler,
     convertStack, loadedModules, urlToFile, events, on, urlToPath, 
-    thisUrl, FS, require,
+    thisUrl, FS, require,core,
     default:{} as any,
 };
 export default pNode;
@@ -72,17 +126,17 @@ let builtInAliases:{[key:string]:ModuleValue}={
     "@hoge1e3/fs": FS,
     "@hoge1e3/fs2": FS,
     "@hoge1e3/sfile": sfile,
-    fs: genfs(FS.nodePolyfill.fs),
-    os: FS.nodePolyfill.os,
-    path: FS.nodePolyfill.path,
-    process: FS.nodePolyfill.process,
+    fs: genfs(core.fs),
+    os: core.os,
+    path: core.path,
+    process: core.process,
     assert,
     util,
     chai,
-    "jszip": FS.JSZip,
+    "jszip": JSZip,
     espree,
 };
-globalThis.process=FS.nodePolyfill.process;
+globalThis.process=globalThis.process||core.process;
 function dupNodePrefix(keys:string[]){
     for (let k of keys) {
         builtInAliases[`node:${k}`]=builtInAliases[k];

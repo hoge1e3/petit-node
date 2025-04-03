@@ -38,6 +38,7 @@ module.exports = (env,argv)=>({
         parser: {
           javascript: {
             importMeta: !env.production,
+            commonjsMagicComments: true
           },
         },
     },
