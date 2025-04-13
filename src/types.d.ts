@@ -6,7 +6,8 @@
 declare type Content={
     toURL():string;
 }*/
-import {SFile} from "@hoge1e3/fs2";
+import {FSClass, SFile} from "@hoge1e3/fs2";
+import RootFS from "petit-fs/src/fs/RootFS";
 export type TFS={
     get(path:string):SFile;
     getEnv():typeof process.env;
@@ -18,6 +19,11 @@ export type TFS={
     expand: typeof import("@hoge1e3/fs2").expand;
     expandPath: typeof import("@hoge1e3/fs2").expandPath;
     resolve: typeof import("@hoge1e3/fs2").resolve;
+    //--- not for nw.js, only petit-fs ---
+    mount?(mountPoint:string, fs:string|FSClass):void;
+    mountAsync?(mountPoint:string, fs:string):Promise<void>;    
+    unmount?(mountPoint:string):void;
+    getRootFS?():RootFS;
 };
 export type FSDEPS={
     path:typeof import("node:path"),

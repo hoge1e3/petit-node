@@ -2,6 +2,7 @@
 <script type="module">
 import pNode from "../dist/index.js";
 import {main,prt} from "./setup.js";
+import "./console.js";
 const fixture={
     "package.json":`{"type":"module"}`,
     "main.js": `
@@ -19,9 +20,8 @@ export function foo(x) {
 `,
 
 };
-try {
-    await main(fixture);
-} catch(e) {
+window.addEventListener("error", async (e) => {
+    console.error(e);
     console.log("error", e);
     prt(e);
     await new Promise(s=>setTimeout(s,1000));
@@ -30,5 +30,17 @@ try {
     f.text(f.text()+"}");
     prt("Error fixed!");
     await pNode.importModule(home.rel("main.js"));
-}
+});
+//try {
+    await main(fixture);
+/*} catch(e) {
+    console.log("error", e);
+    prt(e);
+    await new Promise(s=>setTimeout(s,1000));
+    const home=pNode.FS.get("/node/");
+    const f=home.rel("my_module.js");
+    f.text(f.text()+"}");
+    prt("Error fixed!");
+    await pNode.importModule(home.rel("main.js"));
+}*/
 </script>

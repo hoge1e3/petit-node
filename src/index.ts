@@ -93,17 +93,26 @@ function mod2obj<T extends object>(o:T):T&{default:T}{
         return {...res, default:res};    
     }
 }
-function wrapGet(FS:TFS):TFS {
-    const orig=FS.get.bind(FS);
-    FS.get=(path:string):SFile=>{
+function wrapFSGet(FS:TFS):TFS {
+    const props: (keyof TFS)[] = [
+        "get", "getEnv", "setEnv", "PathUtil", "zip", "SFile", "expand", "expandPath", "resolve",
+        "mount", "unmount", "getRootFS", "mountAsync",
+    ];
+    const res={} as TFS;
+    for (let k of props) {
+        res[k]=(FS as any)[k];
+    }
+    const orig=res.get.bind(res);
+    res.get=(path:string):SFile=>{
         if (path.startsWith("blob:")) {
             path=urlToPath(path);
         }
         return orig(path);
     }
-    return FS;
+    (res as any).default=res;
+    return res;
 }
-export const FS=wrapGet(mod2obj(core.FS));
+export const FS=wrapFSGet(mod2obj(core.FS));
 
 const thisUrl=()=>(
     new URL(import.meta.url));

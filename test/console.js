@@ -44,5 +44,6 @@ addEventListener("error",(...args)=>{
      console.error(...args); 
 });
 addEventListener("unhandledrejection", function(promiseRejectionEvent) {
-    console.error(promiseRejectionEvent.reason.stack);
+  console.log("unhandledrejection",promiseRejectionEvent);
+  console.error(promiseRejectionEvent.reason.stack);
 });

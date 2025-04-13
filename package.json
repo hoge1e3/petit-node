@@ -29,7 +29,7 @@
   },
   "homepage": "https://github.com/hoge1e3/petit-node#readme",
   "dependencies": {
-    "@hoge1e3/assert": "^2.1.2",
+    "@hoge1e3/assert": "^2.1.4",
     "@hoge1e3/util": "^0.12.6",
     "@hoge1e3/events": "^1.0.0",
     "@hoge1e3/fs2": "^1.0.7",
