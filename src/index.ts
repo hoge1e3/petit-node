@@ -97,6 +97,7 @@ function wrapFSGet(FS:TFS):TFS {
     const props: (keyof TFS)[] = [
         "get", "getEnv", "setEnv", "PathUtil", "zip", "SFile", "expand", "expandPath", "resolve",
         "mount", "unmount", "getRootFS", "mountAsync",
+        "deps", "mimeTypes", "_normalizePath", "addMIMEType",
     ];
     const res={} as TFS;
     for (let k of props) {

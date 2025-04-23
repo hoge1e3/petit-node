@@ -7,6 +7,8 @@ declare type Content={
     toURL():string;
 }*/
 import {FSClass, SFile} from "@hoge1e3/fs2";
+import { DependencyContainer } from "@hoge1e3/sfile";
+import { MIMETypes } from "@hoge1e3/sfile/src/MIMETypes";
 import RootFS from "petit-fs/src/fs/RootFS";
 export type TFS={
     get(path:string):SFile;
@@ -24,7 +26,12 @@ export type TFS={
     mountAsync?(mountPoint:string, fs:string):Promise<void>;    
     unmount?(mountPoint:string):void;
     getRootFS?():RootFS;
-};
+    //--- see SFile.ts 
+    deps?: DependencyContainer;
+    mimeTypes?: MIMETypes;
+    addMIMEType?(extension:string, contentType:string):void;
+    _normalizePath?(inputPath:string):string;
+  };
 export type FSDEPS={
     path:typeof import("node:path"),
     fs:typeof import("node:fs"),
