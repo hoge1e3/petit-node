@@ -25,7 +25,9 @@ const core=setupCore();
 declare let globalThis:any;
 //declare let global:any;
 type SFile=sfile.SFile;
+const VERSION="__VER__1.3.5__SION__";
 function setupCore(){
+    let res;
     if (typeof globalThis!=="undefined" && globalThis.__nwpolyfill) {
         console.log("Using __nwpolyfill");
         const {fs,path,os}=globalThis.__nwpolyfill;
@@ -66,7 +68,7 @@ function setupCore(){
         FS.PathUtil=PathUtil;
         FS.zip=zip;
         FS.SFile=sfile.SFile;
-        return {
+        res={
             FS,
             os,
             fs,
@@ -74,11 +76,13 @@ function setupCore(){
             process,
         };
     } else {
-        return {
+        res={
             FS:_FS as TFS, 
             ..._FS.nodePolyfill,
         };
     }
+    res.process.versions.petit_node=VERSION.replace(/__VER__/,"").replace(/__SION__/,"");
+    return res;
 }
 function mod2obj<T extends object>(o:T):T&{default:T}{
     try {
