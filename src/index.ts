@@ -25,7 +25,8 @@ const core=setupCore();
 declare let globalThis:any;
 //declare let global:any;
 type SFile=sfile.SFile;
-const VERSION="__VER__1.3.5__SION__";
+const VERSION_SRC="__VER__1.3.5__SION__";
+export let version=VERSION_SRC.replace(/\_\_VER\_\_/,"").replace(/\_\_SION\_\_/,"");
 function setupCore(){
     let res;
     if (typeof globalThis!=="undefined" && globalThis.__nwpolyfill) {
@@ -80,8 +81,8 @@ function setupCore(){
             FS:_FS as TFS, 
             ..._FS.nodePolyfill,
         };
+        res.process.release.name="petit-node";
     }
-    res.process.versions.petit_node=VERSION.replace(/__VER__/,"").replace(/__SION__/,"");
     return res;
 }
 function mod2obj<T extends object>(o:T):T&{default:T}{
@@ -130,7 +131,7 @@ let pNode={
     ESModule: CompiledESModule, NodeModule, addAlias, addAliases,getAliases,
     ESModuleCompiler, CJSCompiler,
     convertStack, loadedModules, urlToFile, events, on, urlToPath, 
-    thisUrl, FS, require,core,
+    thisUrl, FS, require,core,version,
     default:{} as any,
 };
 export default pNode;
