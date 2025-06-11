@@ -10,12 +10,36 @@ let autoexec;
 function status(...a){
     console.log(...a);
 }
+async function unzipURL(url, dest) {
+    status("Fetching: "+url);
+    const response = await fetch(url);
+    console.log(response);
+    let blob=await response.blob();
+    return await unzipBlob(blob,dest);
+}
 async function unzipBlob(blob, dest) {
     status("unzipping blob ");
     let zip=FS.get("/tmp/setup.zip");
     await zip.setBlob(blob);
     dest.mkdir();
     await FS.zip.unzip(zip,dest,{v:true});
+}
+function fixrun(run){
+    const ls=run.ls();
+    
+    console.log(ls.join(","));
+    if(!ls.includes("package.json")&&
+    ls.length==1){
+        run=run.rel(ls[0]);
+    }
+    return run;
+}
+async function networkBoot(url){
+    const boot=FS.get(FS.getEnv("boot"));
+    await unzipURL(url, boot);
+    status("Boot start!");
+    rmbtn();
+    await pNode.importModule(fixrun(boot));
 }
 function initCss(){
     const style = document.createElement('style');
@@ -61,10 +85,13 @@ function init(){
                 convertStack:pNode.convertStack,
                 loadScriptTag,
             };
+            FS.setEnv("PNODE_VER",pNode.version);
             FS.setEnv("PNODE_URL",PNODE_URL);
             FS.setEnv("boot","/tmp/boot/");
+            console.log("Mounting RAM/IDB");
             await FS.mountAsync("/tmp/","ram");
             await FS.mountAsync("/idb/","idb");
+            console.log("Done");
             afterInit(o);
         }
     });
@@ -73,17 +100,22 @@ function rmbtn(){
     for(let b of document.querySelectorAll('button')){
         b.parentNode.removeChild(b);
     }
+    quick=1;
 }
+let quick;
 const handlers={
     async oncompilestart({entry}) {
+        if(quick)return;
         await timeout(0);
         console.log("Compile start ",entry.file.path());
     },
     async oncompiled({module}) {
+        if(quick)return;
         await timeout(0);
         console.log("Compile complete ",module.entry.file.path());
     },
     async oncachehit({entry}) {
+        if(quick)return;
         await timeout(0);
         console.log("In cache ",entry.file.path());
     }

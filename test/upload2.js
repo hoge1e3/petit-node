@@ -2,10 +2,8 @@
 
 const timeout=(t)=>new Promise(s=>setTimeout(s,t));
 const PNODE_VER=globalThis.PNODE_VER;
-const PNODE_URL=globalThis.PNODE_URL||`https://cdn.jsdelivr.net/npm/petit-node@${PNODE_VER}/dist/index.js`;
-let FS;
-let menus;
-let autoexec;
+const PNODE_URL=`https://cdn.jsdelivr.net/npm/petit-node@${PNODE_VER}/dist/index.js`;
+console.log(document.readyState);
 async function onload() {
     const pNode=await import(PNODE_URL);
     globalThis.pNode=pNode;
@@ -20,8 +18,11 @@ async function onload() {
 }
 if (document.readyState==="complete") onload();
 else addEventListener("load",onload);
+
+let FS;
+let menus;
+let autoexec;
 function installPWA(){
-    if (location.hostname==="localhost") return;
     if ('serviceWorker' in navigator) {
         if(document.readyState === "complete")start();
         else window.addEventListener('load', start);
@@ -61,6 +62,16 @@ async function unzipBlob(blob, dest) {
     dest.mkdir();
     await FS.zip.unzip(zip,dest,{v:1});
 }
+function fixrun(run){
+    const ls=run.ls();
+    
+    console.log(ls.join(","));
+    if(!ls.includes("package.json")&&
+    ls.length==1){
+        run=run.rel(ls[0]);
+    }
+    return run;
+}
 async function networkBoot(url){
     const boot=FS.get(FS.getEnv("boot"));
     await unzipURL(url, boot);
@@ -96,16 +107,8 @@ function initCss(){
     document.head.appendChild(style);
     menus=document.createElement('div');
     menus.classList.add("menus");
-    document.body.appendChild(menus);   
-}
-function fixrun(run){
-    // if run is a directory, and it has only one file, use directory/package.json.
-    const ls=run.ls();
-    if(!ls.includes("package.json")&&
-    ls.length==1){
-        run=run.rel(ls[0]);
-    }
-    return run;
+    document.body.appendChild(menus);
+    
 }
 function init(){
     initCss();
@@ -294,6 +297,7 @@ function insertBootDisk() {
         pNode.importModule(fixrun(run));
     });
 }
+
 async function resetall(a){
     if(prompt("type 'really' to clear all data")!=="really")return;
     for(let k in localStorage){
