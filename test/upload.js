@@ -1,6 +1,7 @@
 /*global globalThis*/
 const PNODE_URL="../dist/index.js";
 const pNode= await import(PNODE_URL);
+const tmpBoot="/tmp/boot";
 import "./console.js";
 const timeout=(t)=>new Promise(s=>setTimeout(s,t));
 globalThis.pNode=pNode;
@@ -71,6 +72,15 @@ function initCss(){
     menus.classList.add("menus");
     document.body.appendChild(menus);
 }
+function fixBoot(boot){
+    const ls=boot.ls();   
+    console.log(ls.join(","));
+    if(!ls.includes("package.json")&&
+    ls.length==1){
+        boot=boot.rel(ls[0]);
+    }
+    return boot;
+}
 function init(){
     initCss();
     console.log("init");
@@ -87,7 +97,7 @@ function init(){
             };
             FS.setEnv("PNODE_VER",pNode.version);
             FS.setEnv("PNODE_URL",PNODE_URL);
-            FS.setEnv("boot","/tmp/boot/");
+            FS.setEnv("boot",tmpBoot);
             console.log("Mounting RAM/IDB");
             await FS.mountAsync("/tmp/","ram");
             await FS.mountAsync("/idb/","idb");
@@ -151,8 +161,8 @@ function afterInit({FS}){
                     rmbtn();
                     await console.log("start",main);
                     await timeout(10);
-                    const mainF=FS.get(main);
-                    FS.setEnv("boot",mainF);
+                    let mainF=fixBoot(FS.get(main));
+                    FS.setEnv("boot",mainF.path());
                     await pNode.importModule(mainF);
                 },auto);
             }
@@ -243,16 +253,14 @@ function insertBootDisk() {
     cas.setAttribute("type","file");
     document.body.appendChild(cas);
     const dl=document.createElement("div");
-    dl.innerHTML=`<a href="https://hoge1e3.github.io/acepad/acepad/setup.zip">Download Sample Boot Disk</a>`;
+    dl.innerHTML=`<a href="https://github.com/hoge1e3/acepad-dev/archive/refs/heads/main.zip">Download Sample Boot Disk</a>`;
     document.body.appendChild(dl);
     cas.addEventListener("input",async function () {
-        const run=FS.get("/tmp/run/");
-        await unzipBlob(this.files[0],run);
+        let boot=FS.get(tmpBoot);
+        await unzipBlob(this.files[0],boot);
         rmbtn();
-        /*const e=pNode.resolveEntry(run);
-        e.compile(handlers);
-        await timeout(1000);
-        //pNode.resolveEntry()*/
-        pNode.importModule(run);
+        boot=fixBoot(boot);
+        FS.setEnv("boot",boot.path());
+        pNode.importModule(boot);
     });
 }
