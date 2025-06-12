@@ -10,7 +10,7 @@ async function onload() {
     await import("./console.js");
     console.log("PNODE_VER",PNODE_VER);
     console.log("PNODE_URL",PNODE_URL);
-    const SETUP_URL="acepad/setup.zip";
+    process.env.SETUP_URL="acepad/setup.zip";
     if(!localStorage["/"]){
         localStorage["/"]="{}";
     }
@@ -162,45 +162,51 @@ const handlers={
     }
 };
 function afterInit({FS}){
-    const rp=FS.get("/package.json");
     btn("Setup/<br/>Restore",()=>networkBoot(SETUP_URL));
     btn("Insert<br/>Boot Disk",()=>insertBootDisk());
     btn("Factory<br/>Reset",()=>resetall());
     
     //console.log("rp",rp.exists());
+    const rp=FS.get("/package.json");
     if(rp.exists()){
-        const o=rp.obj();
-        if(o.menus){
-            for(let k in o.menus){
-                const run=o.menus[k];
-                let main,auto;
-                if(typeof run==="object"){
-                    main=run.main;
-                    auto=run.auto;
-                    if (auto) {
-                        try {
-                            const e=pNode.resolveEntry(FS.get(main));
-                            const compiler=pNode.ESModuleCompiler.create(handlers);
-                            compiler.compile(e).then(
-                            r=>console.log("Prefetched auto start",r.url),
-                            e=>console.error(e),
-                            );
-                        }catch(e) {
-                            console.error(e);
-                        }
-                    }
-                }else{
-                    main=run;
-                }
-                btn(k,async ()=>{
-                    rmbtn();
-                    await console.log("start",main);
-                    await timeout(0);
-                    const mainF=FS.get(main);
-                    FS.setEnv("boot",mainF);
-                    await pNode.importModule(mainF);
-                },auto);
-            }
+        parseRootPackageJson(rp);
+    }
+}
+function parseMenus(menus){
+    for(let k in menus){
+        const main=menus[k];
+        if(typeof main==="string"){
+            menus[k]={main};
+        }
+    }
+}
+function prefetchAuto({main}) {
+    try {
+        const e=pNode.resolveEntry(FS.get(main));
+        const compiler=pNode.ESModuleCompiler.create(handlers);
+        compiler.compile(e).then(
+            r=>console.log("Prefetched auto start",r.url),
+            e=>console.error(e),
+        );
+    }catch(e) {
+        console.error(e);
+    }
+}
+function parseRootPackageJson(rp) {
+    const o=rp.obj();
+    if(o.menus){
+        const menus=parseMenus(o.menus);
+        for(let k in menus){
+            const {main,auto}=menus[k];
+            if (auto) prefetchAuto({main});
+            btn(k,async ()=>{
+                rmbtn();
+                await console.log("start",main);
+                await timeout(10);
+                let mainF=fixBoot(FS.get(main));
+                FS.setEnv("boot",mainF.path());
+                await pNode.importModule(mainF);
+            },auto);
         }
     }
 }
@@ -226,7 +232,7 @@ function btn(c,a,auto){
 function abortAuto(){
     const b=document.querySelector("button.stop");
     if(b)document.body.removeChild(b);
-    console.log("Boot aborted.");
+    if (autoexec) console.log("Boot aborted.");
     autoexec=null;
 }
 function stopBtn(){
@@ -234,7 +240,6 @@ function stopBtn(){
     const b=document.createElement("button");
     b.classList.add("menubtn");
     b.classList.add("stop");
-    
     b.innerHTML="Stop<br>auto start<br>2";
     document.body.append(b);
     const act=async()=>{
@@ -252,7 +257,6 @@ function stopBtn(){
         b.innerHTML="Stop<br>auto start<br>1";
     },1000);
 }
-
 function getQueryString(key, default_) {
     if (arguments.length === 1) default_ = "";
     key = key.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
@@ -263,7 +267,6 @@ function getQueryString(key, default_) {
 function decodeURLComponentEx(s) {
     return decodeURIComponent(s.replace(/\+/g, '%20'));
 }
-
 function loadScriptTag(url,attr){
     /*global define,requirejs*/
     if (attr.type!=="module" && 

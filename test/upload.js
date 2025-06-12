@@ -11,6 +11,11 @@ let autoexec;
 function status(...a){
     console.log(...a);
 }
+function onReady(callback) {
+    if (document.readyState==="complete") callback();
+    else addEventListener("load",callback);
+}
+onReady(init);
 async function unzipURL(url, dest) {
     status("Fetching: "+url);
     const response = await fetch(url);
@@ -136,47 +141,47 @@ function afterInit({FS}){
     btn("Insert<br/>Boot Disk",()=>insertBootDisk());
     console.log(rp.exists());
     if(rp.exists()){
-        const o=rp.obj();
-        if(o.menus){
-            for(let k in o.menus){
-                const run=o.menus[k];
-                let main,auto;
-                if(typeof run==="object"){
-                    main=run.main;
-                    auto=run.auto;
-                    try {
-                        const e=pNode.resolveEntry(FS.get(main));
-                        const compiler=pNode.ESModuleCompiler.create(handlers);
-                        compiler.compile(e).then(
-                            r=>console.log("Prefetched auto start",r.url),
-                            e=>console.error(e),
-                        );
-                    }catch(e) {
-                        console.error(e);
-                    }
-                }else{
-                    main=run;
-                }
-                btn(k,async ()=>{
-                    rmbtn();
-                    await console.log("start",main);
-                    await timeout(10);
-                    let mainF=fixBoot(FS.get(main));
-                    FS.setEnv("boot",mainF.path());
-                    await pNode.importModule(mainF);
-                },auto);
-            }
+        parseRootPackageJson(rp);
+    }
+}
+function parseMenus(menus){
+    for(let k in menus){
+        const main=menus[k];
+        if(typeof main==="string"){
+            menus[k]={main};
         }
     }
 }
-function onReady(callback) {
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", callback);
-    } else {
-        callback();
+function prefetchAuto({main}) {
+    try {
+        const e=pNode.resolveEntry(FS.get(main));
+        const compiler=pNode.ESModuleCompiler.create(handlers);
+        compiler.compile(e).then(
+            r=>console.log("Prefetched auto start",r.url),
+            e=>console.error(e),
+        );
+    }catch(e) {
+        console.error(e);
     }
 }
-onReady(init);
+function parseRootPackageJson(rp) {
+    const o=rp.obj();
+    if(o.menus){
+        const menus=parseMenus(o.menus);
+        for(let k in menus){
+            const {main,auto}=menus[k];
+            if (auto) prefetchAuto({main});
+            btn(k,async ()=>{
+                rmbtn();
+                await console.log("start",main);
+                await timeout(10);
+                let mainF=fixBoot(FS.get(main));
+                FS.setEnv("boot",mainF.path());
+                await pNode.importModule(mainF);
+            },auto);
+        }
+    }
+}
 function btn(c,a,auto){
     let b=document.createElement("button");
     b.classList.add("menubtn");
@@ -202,7 +207,7 @@ function btn(c,a,auto){
 function abortAuto(){
     const b=document.querySelector("button.stop");
     if(b)document.body.removeChild(b);
-    console.log("Boot aborted.");
+    if (autoexec) console.log("Boot aborted.");
     autoexec=null;
 }
 function stopBtn(){
@@ -226,6 +231,16 @@ function stopBtn(){
     setTimeout(()=>{
         b.innerHTML="Stop<br>auto start<br>1";
     },1000);
+}
+function getQueryString(key, default_) {
+    if (arguments.length === 1) default_ = "";
+    key = key.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+    var regex = new RegExp("[\\?&]" + key + "=([^&#]*)");
+    var qs = regex.exec(location.href);
+    if (qs == null) return default_;else return decodeURLComponentEx(qs[1]);
+}
+function decodeURLComponentEx(s) {
+    return decodeURIComponent(s.replace(/\+/g, '%20'));
 }
 function loadScriptTag(url,attr){
     /*global define,requirejs*/
@@ -263,4 +278,10 @@ function insertBootDisk() {
         FS.setEnv("boot",boot.path());
         pNode.importModule(boot);
     });
+}
+async function resetall(a){
+    if(prompt("type 'really' to clear all data")!=="really")return;
+    for(let k in localStorage){
+        delete localStorage[k];
+    }
 }
