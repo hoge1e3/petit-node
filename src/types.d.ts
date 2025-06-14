@@ -7,11 +7,12 @@ declare type Content={
     toURL():string;
 }*/
 import {FSClass, SFile} from "@hoge1e3/fs2";
-import { DependencyContainer } from "@hoge1e3/sfile";
+import { DependencyContainer, Policy } from "@hoge1e3/sfile";
 import { MIMETypes } from "@hoge1e3/sfile/src/MIMETypes";
 import RootFS from "petit-fs/src/fs/RootFS";
 export type TFS={
     get(path:string):SFile;
+    setDefaultPolicy(policy?:Policy):void;
     getEnv():typeof process.env;
     getEnv(name:string):string|undefined;
     setEnv(name:string, value:string):void;

@@ -101,7 +101,7 @@ function mod2obj<T extends object>(o:T):T&{default:T}{
 function wrapFSGet(FS:TFS):TFS {
     const props: (keyof TFS)[] = [
         "get", "getEnv", "setEnv", "PathUtil", "zip", "SFile", "expand", "expandPath", "resolve",
-        "mount", "unmount", "getRootFS", "mountAsync",
+        "mount", "unmount", "getRootFS", "mountAsync","setDefaultPolicy",
         "deps", "mimeTypes", "_normalizePath", "addMIMEType",
     ];
     const res={} as TFS;
