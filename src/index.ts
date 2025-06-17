@@ -261,7 +261,7 @@ export function loadedModules() {
     return getAliases();
 }
 export function urlToPath(url:string):string {
-    let ent=loadedModules().getByURL(url);
+    let ent=loadedModules().getByURL(url, true);
     if (!ent) return url;
     return ent.path;
 }
