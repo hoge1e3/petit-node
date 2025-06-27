@@ -88,14 +88,14 @@ export async function init(env){
     pNode.boot({
         async init(o){
             globalThis.FS=FS=o.FS.default;
-            FS.os={
+            /*FS.os={
                 importModule:pNode.importModule,
                 loadModule:pNode.importModule,
                 createModuleURL:pNode.createModuleURL,
                 urlToPath:pNode.urlToPath,
                 convertStack:pNode.convertStack,
                 loadScriptTag,
-            };
+            };*/
             console.log("Mounting RAM/IDB");
             FS.mount("/tmp/","ram");
             await FS.mountAsync("/idb/","idb");
