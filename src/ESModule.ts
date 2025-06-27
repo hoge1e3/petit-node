@@ -100,14 +100,20 @@ export class ESModuleCompiler {
                 }
                 const e=ModuleEntry.resolve(path,base);
                 this.depChecker.add(entry.file.path(), e.file.path());
-                let c,url;
+                let c:Module,url:string;
                 if(e.moduleType()==="CJS") {
                     if (this.oncompilestart) await this.oncompilestart({entry,isCJS:true});
-                    c=this.getCJSCompiler().compile(e);
-                    url=addURL(c);
+                    const cc=this.getCJSCompiler().compile(e);
+                    if (!cc.url) {
+                        url=addURL(cc);
+                    } else {
+                        url=cc.url;
+                    }
+                    c=cc;
                 }else{
-                    c=await this.compile(e);
-                    url=c.url;
+                    const ec=await this.compile(e);
+                    url=ec.url;
+                    c=ec;
                 }
                 deps.push(c);
                 return url;

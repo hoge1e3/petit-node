@@ -38,12 +38,12 @@ export interface FileBasedModule extends Module {
 }
 export class CompiledESModule implements FileBasedModule {
     readonly type="ES";
-    public path:string;
+    public readonly path:string;
     constructor(
-        public entry: ModuleEntry,
-        public dependencies: Module[],
-        public url: string,
-        public generatedCode: string,
+        public readonly entry: ModuleEntry,
+        public readonly dependencies: Module[],
+        public readonly url: string,
+        public readonly generatedCode: string,
     ){
         this.path=entry.file.path();
     }
@@ -57,13 +57,13 @@ export class CompiledESModule implements FileBasedModule {
 }
 export class CompiledCJS implements FileBasedModule{
     readonly type="CJS";
-    public path:string;
+    public readonly path:string;
     public url:string|undefined;
     constructor(
-        public entry: ModuleEntry,
-        public dependencies: Module[],
-        public value: ModuleValue,
-        public generatedCode: string,
+        public readonly entry: ModuleEntry,
+        public readonly dependencies: Module[],
+        public readonly value: ModuleValue,
+        public readonly generatedCode: string,
     ){
         this.path=entry.file.path();
     }
@@ -109,13 +109,13 @@ export class ModuleCache implements IModuleCache {
     /*getByFile(f:SFile) {
         return this.getByPath(f.path());
     }*/
-    getByPath(path:string) {
+    getByPath(path:string, skipCheckReload=false) {
         const e=this.byPath.get(path);
-        return this.checkReload(e);
+        return skipCheckReload ? e : this.checkReload(e);
     }
-    getByURL(url:string) {
+    getByURL(url:string, skipCheckReload=false) {
         const e=this.byURL.get(url);
-        return this.checkReload(e);
+        return skipCheckReload ? e :this.checkReload(e);
     }
     private checkReload(e:Module|undefined) {
         if (e && e.shouldReload()) {

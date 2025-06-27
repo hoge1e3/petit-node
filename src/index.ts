@@ -263,12 +263,12 @@ export function loadedModules() {
     return getAliases();
 }
 export function urlToPath(url:string):string {
-    let ent=loadedModules().getByURL(url);
+    let ent=loadedModules().getByURL(url, true);
     if (!ent) return url;
     return ent.path;
 }
 export function urlToFile(url:string):SFile {
-    let mod=loadedModules().getByURL(url);
+    let mod=loadedModules().getByURL(url, true);
     if (!mod) throw new Error(`${url} is not loaded.`);
     if (mod instanceof CompiledESModule || mod instanceof CompiledCJS) {
         return mod.entry.file;

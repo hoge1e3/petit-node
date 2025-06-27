@@ -65,7 +65,7 @@ export interface IModuleCache extends Iterable<Module> {
     add(m:Module):void;
     delete(m:Module):void;
     reload(m:Module):void;
-    getByPath(path:string):Module|undefined;
-    getByURL(url:string):Module|undefined;
+    getByPath(path:string, skipCheckReload?:boolean):Module|undefined;
+    getByURL(url:string, skipCheckReload?:boolean):Module|undefined;
 }
 export type AliasHash={[key:string]:ModuleValue};
