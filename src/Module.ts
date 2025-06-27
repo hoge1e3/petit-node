@@ -38,12 +38,12 @@ export interface FileBasedModule extends Module {
 }
 export class CompiledESModule implements FileBasedModule {
     readonly type="ES";
-    public path:string;
+    public readonly path:string;
     constructor(
-        public entry: ModuleEntry,
-        public dependencies: Module[],
-        public url: string,
-        public generatedCode: string,
+        public readonly entry: ModuleEntry,
+        public readonly dependencies: Module[],
+        public readonly url: string,
+        public readonly generatedCode: string,
     ){
         this.path=entry.file.path();
     }
@@ -57,13 +57,13 @@ export class CompiledESModule implements FileBasedModule {
 }
 export class CompiledCJS implements FileBasedModule{
     readonly type="CJS";
-    public path:string;
+    public readonly path:string;
     public url:string|undefined;
     constructor(
-        public entry: ModuleEntry,
-        public dependencies: Module[],
-        public value: ModuleValue,
-        public generatedCode: string,
+        public readonly entry: ModuleEntry,
+        public readonly dependencies: Module[],
+        public readonly value: ModuleValue,
+        public readonly generatedCode: string,
     ){
         this.path=entry.file.path();
     }
