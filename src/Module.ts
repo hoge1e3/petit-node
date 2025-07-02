@@ -15,8 +15,8 @@ export class ModuleEntry {
     moduleType():FileBasedModuleType {
         return NodeModule.moduleTypeOfFile(this.file);
     }
-    static fromFile(file:SFile):ModuleEntry {
-        const newEntry=new ModuleEntry(file, file.text(), file.lastUpdate());
+    static fromFile(file:SFile, timestamp:number=file.lastUpdate()):ModuleEntry {
+        const newEntry=new ModuleEntry(file, file.text(), timestamp);
         return newEntry;
     }
     static resolve(path:string,base:SFile):ModuleEntry{
