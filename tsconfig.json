@@ -13,7 +13,8 @@
       // 厳密モードとして設定
       "strict": true,
       "outDir":"./js",
-      "allowSyntheticDefaultImports":true
+      "allowSyntheticDefaultImports":true,
+      "tsBuildInfoFile": "./.tsbuildinfo",
     },
     "include": ["src"]
   }
