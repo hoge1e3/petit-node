@@ -275,35 +275,35 @@ export function urlToFile(url:string):SFile {
     }
     throw new Error(`${url}(${mod.path}) is not associated to a file.`);
 }
-export function addPrecompiledModule(path:string, compiledCode:string|Function, dependencies:string[]):string {
+export function addPrecompiledESModule(path:string, timestamp:number, compiledCode: string, dependencies:Module[]):CompiledESModule {
     const file=FS.get(path);
     const aliases=getAliases();
-    const m=aliases.getByPath(path);
-    if (m?.url) return m.url;
-    if(typeof compiledCode==="function") {
-        const base=file.up()!;
-        const require=(path:string)=>{
-            const builtin=aliases.getByPath(path);
-            if (builtin?.value) return builtin.value;
-            const entry=ModuleEntry.resolve(path, base);
-            const module=aliases.getByPath(entry.file.path());
-            if (module?.value) return module.value;
-            throw new Error(`Cannot resolve ${path}`);
-        };
-        const exports={} as ModuleValue, module={exports}, filename=file.path(), dirname=base.path();
-        const args=[require, exports, module, filename, dirname ];
-        const value=compiledCode(...args);
-        const entry=ModuleEntry.fromFile(file);
-        const deps=dependencies.map(path=>aliases.getByPath(path)!);
-        const res=new CompiledCJS(entry, deps, value, "/*preCompiledModule*/"+compiledCode);
-        aliases.add(res);
-        return res.url || addURL(res);
-    } else {
-        const entry=ModuleEntry.fromFile(file);
-        const deps=dependencies.map(path=>aliases.getByPath(path)!);
-        const url=jsToBlobURL(compiledCode);
-        const res=new CompiledESModule(entry, deps, url, compiledCode);
-        aliases.add(res);
-        return url;
-    }
+    const entry=ModuleEntry.fromFile(file, timestamp);
+    const deps=dependencies;
+    const url=jsToBlobURL(compiledCode);
+    const res=new CompiledESModule(entry, deps, url, compiledCode);
+    aliases.add(res);
+    return res;
+}
+export function addPrecompiledCJSModule(path:string, timestamp:number, compiledCode:Function, dependencies:Module[]):CompiledCJS {
+    const file=FS.get(path);
+    const aliases=getAliases();
+    const base=file.up()!;
+    const require=(path:string)=>{
+        const builtin=aliases.getByPath(path);
+        if (builtin?.value) return builtin.value;
+        const entry=ModuleEntry.resolve(path, base);
+        const module=aliases.getByPath(entry.file.path());
+        if (module?.value) return module.value;
+        throw new Error(`Cannot resolve ${path}`);
+    };
+    const exports={} as ModuleValue, module={exports}, filename=file.path(), dirname=base.path();
+    const args=[require, exports, module, filename, dirname ];
+    const value=compiledCode(...args);
+    const entry=ModuleEntry.fromFile(file,timestamp);
+    const deps=dependencies;
+    const res=new CompiledCJS(entry, deps, value, "/*preCompiledModule*/"+compiledCode);
+    aliases.add(res);
+    addURL(res);
+    return res
 }

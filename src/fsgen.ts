@@ -10,5 +10,6 @@ export function gen(fs:any) {
             res[p]=v;
         }
     }
+    res.default=res;
     return res;
 }
