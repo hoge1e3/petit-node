@@ -6,7 +6,12 @@ import { CompiledCJS, ModuleEntry } from "./Module.js";
 
 type RequireFunc=((path:string)=>ModuleValue)&{deps:Set<Module>};
 //type Module={exports:ModuleValue};
-
+function wrapException(e:Error, pos:string) {
+    const res=new Error("At "+pos+"\n"+e.message);
+    res.stack=e.stack;
+    (res as any).original=e;
+    return res;
+}
 export class CJSCompiler {
     static create(): CJSCompiler {
         return new CJSCompiler();
@@ -48,6 +53,7 @@ export class CJSCompiler {
                 [RequireFunc, ModuleValue, {exports:ModuleValue}, string, string ];
     }
     compile(entry: ModuleEntry):CompiledCJS {
+      try {
         const file=entry.file;
         let c=this.cache.getByPath(file.path());
         if (c instanceof CompiledCJS) {
@@ -67,6 +73,10 @@ export class CJSCompiler {
         const compiled=new CompiledCJS( entry, [...args[0].deps], module.exports, funcSrc);
         this.cache.add(compiled);
         return compiled;
+
+      } catch(e){
+        throw wrapException(e as any, entry.file.path());
+      }
     }
     
 }
