@@ -25,11 +25,12 @@ export class ModuleEntry {
         }else if(path.match(/^\//)){
             return this.fromFile(FS.get(path));
         }else {
-            return this.fromNodeModule(NodeModule.resolve(path,base));
+            const [main,sub]=NodeModule.parsePath(path);
+            return this.fromNodeModule(NodeModule.resolve(main,base),sub);
         }
     }
-    static fromNodeModule(m:NodeModule):ModuleEntry {
-        return ModuleEntry.fromFile(m.getMain());
+    static fromNodeModule(m:NodeModule, subPath="."):ModuleEntry {
+        return ModuleEntry.fromFile(m.getEntry(subPath));
     }
 }
 export interface FileBasedModule extends Module {
