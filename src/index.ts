@@ -156,6 +156,7 @@ let builtInAliases:{[key:string]:ModuleValue}={
     espree,
 };
 globalThis.process=globalThis.process||core.process;
+globalThis.Buffer=globalThis.Buffer||core.Buffer;
 function dupNodePrefix(keys:string[]){
     for (let k of keys) {
         builtInAliases[`node:${k}`]=builtInAliases[k];
