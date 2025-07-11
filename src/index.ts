@@ -75,6 +75,7 @@ function setupCore(){
             fs,
             path,
             process,
+            Buffer,
         };
     } else {
         res={
@@ -147,6 +148,7 @@ let builtInAliases:{[key:string]:ModuleValue}={
     os: core.os,
     path: core.path,
     process: core.process,
+    buffer: core.Buffer,
     assert,
     util,
     chai,
