@@ -4,10 +4,26 @@ import { FileBasedModuleType } from "./types";
 const node_modules="node_modules/";
 const package_json="package.json";
 type PackageJson={
-    main:string,
+    main?:string,
+    exports?: string|{[key: string]:string},
     type?:"module"|"commonJS",
 }
 export class NodeModule {
+    static parsePath(path:string):[string,string] {
+        /*
+        "a"      -> ["a","."]
+         "@a/b"  -> ["@a/b", "."]
+        "a/b"    -> ["a","./b"]
+        "a/b/c"  -> ["a","./b/c"]
+        "@a/b/c" -> ["@a/b", "./c"]
+        */
+        const parts=path.split("/");
+        const {pkg,sub}=((l:number)=>({
+            pkg:parts.slice(0, l).join("/"),
+            sub:parts.slice(l).join("/"),
+        }))(parts[0].startsWith("@")?2:1);
+        return [pkg, sub==="" ? "." : `./${sub}`];
+    }
     constructor(
         public dir:SFile,
     ){}
@@ -18,9 +34,28 @@ export class NodeModule {
         return this.packageJsonFile().obj() as PackageJson;
     }
     getMain():SFile {
+        return this.getEntry();
+        /*const p=this.packageJsonFile();
+        const o=this.packageJson();
+        return p.sibling(o.main||"index.js");*/
+    }
+    getEntry(path="."): SFile {
         const p=this.packageJsonFile();
         const o=this.packageJson();
-        return p.sibling(o.main);
+        let exp={} as {[key:string]:string};
+        if (typeof o.exports==="string") {
+            exp={".": o.exports};
+        } else if (typeof o.exports==="object") {
+            exp=o.exports;
+        } else if (o.main) {
+            exp={".": o.main};
+        } else {
+            exp={".": "./index.js"};
+        }
+        if (!exp[path]) {
+            throw new Error(`${p} has no entry '${path}'.`);
+        }
+        return p.sibling(exp[path]);
     }
     moduleType():FileBasedModuleType {
         const o=this.packageJson();
