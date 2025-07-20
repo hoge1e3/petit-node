@@ -11,6 +11,17 @@ async function onload() {
         PNODE_URL: "../dist/index.js",
         SETUP_URL:"acepad/setup.zip",
     });
+    const FS=pNode.FS;
+    const rp=FS.get("/package.json");
+    await boot.showMenus(rp);
+
     globalThis.pNode=pNode;
+
+    console.log("Mounting RAM/IDB");
+    FS.mount("/tmp/","ram");
+    await FS.mountAsync("/idb/","idb");
+    console.log("Done");
+    boot.initAutoexec(rp);
+
 }
 

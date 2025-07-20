@@ -1,8 +1,19 @@
 /*global globalThis*/
+
 export let pNode;
+
 export let FS;
 export let menus;
+export let submenus;
 let autoexec;
+function mp(){
+    const t=()=>{
+        let v=t,f,c=()=>v!==t&&f&&f(v);
+        return{v:(_)=>c(v=_),f:(_)=>c(f=_)};
+    },s=t(),e=t();return Object.assign(
+    new Promise((a,b)=>s.f(a)+e.f(b)),
+    {resolve:s.v, reject:e.v});
+}
 export const timeout=(t)=>new Promise(s=>setTimeout(s,t));
 export async function loadPNode(env){
     if (!env.PNODE_URL) throw new Error("PNODE_URL should set");
@@ -28,6 +39,9 @@ export async function unzipBlob(blob, dest) {
     await zip.setBlob(blob);
     dest.mkdir();
     await FS.zip.unzip(zip,dest,{v:1});
+}
+export async function fullBackup(){
+    await FS.zip.zip(FS.get("/"));
 }
 export function fixrun(run){
     try{
@@ -66,45 +80,60 @@ export function initCss(){
     }
     .autob{
         background: #dc2;
+        
     }
     .stop{
         background: #d20;
         position:absolute;
         bottom: 0px;
         right: 0px;
+        z-index:100;
+    }
+    .submenus {
+        z-index:10;
+        position: absolute;
+        width:100%;
+        left:0;
+        top:0;
+    }
+    .submenus div {
+        font-size: 18px;
+        border: 1px solid black;
+        background: linear-gradient(#fff, #ddd);
+        padding: 5px;
+    }
+    .submenus div:active {
+        background:#ccc;
     }
     `));
     document.head.appendChild(style);
     menus=document.createElement('div');
     menus.classList.add("menus");
     document.body.appendChild(menus);
+    submenus=document.createElement('div');
+    submenus.classList.add("submenus");
+    document.body.appendChild(submenus);
+    submenus.style.display="none";
     
 }
 export async function init(env){
     await loadPNode(env);
-    initCss();
-    //stopBtn();
-    console.log("init");
-    pNode.boot({
-        async init(o){
-            globalThis.FS=FS=o.FS.default;
-            /*FS.os={
-                importModule:pNode.importModule,
-                loadModule:pNode.importModule,
-                createModuleURL:pNode.createModuleURL,
-                urlToPath:pNode.urlToPath,
-                convertStack:pNode.convertStack,
-                loadScriptTag,
-            };*/
-            console.log("Mounting RAM/IDB");
-            FS.mount("/tmp/","ram");
-            await FS.mountAsync("/idb/","idb");
-            console.log("Done");
-            //networkBoot("acepad/setup.zip");
-            afterInit(o);
-        }
+    return new Promise((s)=>{
+        initCss();
+        //stopBtn();
+        console.log("init");
+        pNode.boot({
+            async init(o){
+                globalThis.FS=FS=o.FS.default;
+                /*console.log("Mounting RAM/IDB");
+                FS.mount("/tmp/","ram");
+                await FS.mountAsync("/idb/","idb");
+                console.log("Done");*/
+                s(pNode);
+            }
+        });
+        //return pNode;
     });
-    return pNode;
 }
 export function rmbtn(){
     for(let b of document.querySelectorAll('button')){
@@ -131,17 +160,17 @@ const handlers={
         //if (entry) console.log("In cache ",entry.file.path());
     }
 };
-function afterInit({FS}){
+export function showMenus(rp){
     if (process.env.SETUP_URL) {
         btn("Setup/<br/>Restore",()=>networkBoot(process.env.SETUP_URL));
     }
     btn("Insert<br/>Boot Disk",()=>insertBootDisk());
     btn("Factory<br/>Reset",()=>resetall());
     
-    const rp=FS.get("/package.json");
     //console.log("rp",rp.exists());
     if(rp.exists()){
-        parseRootPackageJson(rp);
+        showMainmenus(rp);
+        showSubmenus(rp);
     }
 }
 export function parseMenus(menus){
@@ -153,51 +182,100 @@ export function parseMenus(menus){
     }
     return menus;
 }
-let prefetched_auto_url;
-export function prefetchAuto({mainF}) {
+let prefetched_auto_url=mp();
+export async function prefetchAuto({mainF}) {
     try {
-        prefetched_auto_url=[];
         const e=pNode.resolveEntry(mainF);
         const compiler=pNode.ESModuleCompiler.create(handlers);
-        compiler.compile(e).then(
-        r=>{
-            const f=prefetched_auto_url;
-            prefetched_auto_url=r.url;
-            console.log("Prefetched auto start",prefetched_auto_url);
-            for(let h of f) h(prefetched_auto_url);
-        },
-        e=>console.error(e),
-        );
+        const r=await compiler.compile(e);
+        prefetched_auto_url.resolve(r.url);
+        console.log("Prefetched auto start",r.url);
     }catch(e) {
-        prefetched_auto_url=undefined;
+        prefetched_auto_url.reject(e);
         console.error(e);
     }
 }
-export function parseRootPackageJson(rp) {
+export function initAutoexec(rp) {
+    if (!rp.exists()) return;
     const o=rp.obj();
     //console.log("rp.obj",o);
-    if(o.menus){
-        const menus=parseMenus(o.menus);
-        for(let k in menus){
-            const {main,auto}=menus[k];
-            const mainF=fixrun(FS.get(main));
-            if (auto) prefetchAuto({mainF});
-            btn(k,async ()=>{
-                rmbtn();
-                process.env.boot=mainF.path();
-                await console.log("start",process.env.boot);
-                await timeout(1);
-                if (auto && typeof prefetched_auto_url==="string") {
-                    await import(prefetched_auto_url);   
-                } else if (auto && Array.isArray(prefetched_auto_url)) {
-                    prefetched_auto_url.push((u)=>import(u));
-                } else {
-                    await pNode.importModule(mainF);
-                }
-            },auto);
+    if(!o.menus) return;
+    const menus=parseMenus(o.menus);
+    for(let k in menus){
+        const {main,auto, submenus}=menus[k];
+        const mainF=fixrun(FS.get(main));
+        if (auto) {
+            
+            prefetchAuto({mainF});
         }
     }
+    
 }
+export function showMainmenus(rp) {
+    const o=rp.obj();
+    //console.log("rp.obj",o);
+    if(!o.menus)return;
+    const menus=parseMenus(o.menus);
+    let hasAuto;
+    for(let k in menus){
+        const {main,auto, submenus}=menus[k];
+        if (auto) hasAuto=true;
+        btn(k,async ()=>{
+            const mainF=fixrun(FS.get(main));
+            rmbtn();
+            process.env.boot=mainF.path();
+            await console.log("start",process.env.boot);
+            await timeout(1);
+            if (auto) {
+                prefetched_auto_url.then((u)=>import(u));
+            } else {
+                selectedSubmenu=null;
+                await pNode.importModule(mainF);
+            }
+        },auto);
+    }
+    if (hasAuto) stopBtn();
+    
+}
+export function getSelectedSubmenu() {
+    return selectedSubmenu;
+}
+let selectedSubmenu;
+export function showSubmenus(rp) {
+    const o=rp.obj();
+    if(!o.menus)return;
+    const menus=parseMenus(o.menus);
+    let submenuF;
+    for(let k in menus){
+        const {main,auto, submenus}=menus[k];
+        if (auto && submenus) {
+            submenuF=FS.get(submenus);
+        }
+    }
+    if (!submenuF || !submenuF.exists()) return;
+    for (let m of submenuF.obj()) {
+        selectedSubmenu=selectedSubmenu||mp();
+        submenus.style.display="block";
+        const md=document.createElement("div");
+        md.innerText=typeof m==="string"?m:m.label;
+        md.addEventListener("click",()=>{
+            const value=typeof m==="string"?m:m.value;
+            console.log("Selected ", value);
+            if (typeof process!=="undefined" && process.env){
+                process.env.SUBMENU_SELECTED=value;   
+                selectedSubmenu.resolve(value);
+            }
+            hideSubmenus();
+            clickAutostartMenu();
+        });
+        submenus.appendChild(md);
+    }
+    
+}
+export function hideSubmenus(){
+    submenus.style.display="none";
+    
+} 
 export function btn(c,a,auto){
     let b=document.createElement("button");
     b.classList.add("menubtn");
@@ -212,17 +290,20 @@ export function btn(c,a,auto){
     b.addEventListener("click", act);	    
     if(auto){
         b.classList.add("autob");
-        console.log("auto start ",c," in 2 seconds.");
-        autoexec=act;
-        stopBtn();
     }
+    /*console.log("auto start ",c," in 2 seconds.");
+    autoexec=act;
+    stopBtn();
+    */
 }
 export function abortAuto(){
     const b=document.querySelector("button.stop");
     if(b)document.body.removeChild(b);
-    if (autoexec) console.log("Boot aborted.");
-    autoexec=null;
+    if (stopBtnTimer) console.log("Auto boot aborted.");
+    clearTimeout(stopBtnTimer);
+    stopBtnTimer=null;
 }
+let stopBtnTimer;
 export function stopBtn(){
     if(document.querySelector("button.stop"))return ;
     const b=document.createElement("button");
@@ -232,19 +313,27 @@ export function stopBtn(){
     b.innerHTML="Stop<br>auto start<br>2";
     document.body.append(b);
     const act=async()=>{
+        selectedSubmenu=null;
+        hideSubmenus();
         abortAuto();
     };
     b.addEventListener("click", act);	    
-    setTimeout(async()=>{
+    stopBtnTimer=setTimeout(async()=>{
         if(b.parentNode){
             b.parentNode.removeChild(b);
         }
         await timeout(10);
-        if(autoexec)autoexec();
+        clickAutostartMenu();
     },2000);
     setTimeout(()=>{
         b.innerHTML="Stop<br>auto start<br>1";
     },1000);
+}
+export function clickAutostartMenu(){
+    const ab=document.querySelector("button.autob");
+    if (ab) {
+        ab.dispatchEvent(new Event("click"));
+    }
 }
 
 
