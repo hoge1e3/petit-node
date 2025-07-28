@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "petit-node",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "description": "Subset of node.js running in browser",
   "main": "js/index.js",
   "scripts": {
