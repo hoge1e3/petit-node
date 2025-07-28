@@ -404,6 +404,7 @@ export async function resetall(a){
     for(let k in localStorage){
         delete localStorage[k];
     }
+    localStorage["/"]="{}";
 }
 
 export function getQueryString(key, default_) {
