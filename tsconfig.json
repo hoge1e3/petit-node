@@ -4,7 +4,7 @@
       "sourceMap": true,
       // TSはECMAScript 5に変換
       "target": "ES2022",
-      "lib": ["dom","es2021"],
+      "lib": ["es2021"],
       // TSのモジュールはES Modulesとして出力
       "module": "esnext",
       //"allowImportingTsExtensions": true,
