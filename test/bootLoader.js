@@ -6,6 +6,7 @@ export let FS;
 export let menus;
 export let submenus;
 let autoexec;
+let mountPromise=null;
 function mp(){
     const t=()=>{
         let v=t,f,c=()=>v!==t&&f&&f(v);
@@ -13,6 +14,11 @@ function mp(){
     },s=t(),e=t();return Object.assign(
     new Promise((a,b)=>s.f(a)+e.f(b)),
     {resolve:s.v, reject:e.v});
+}
+export const mutablePromise=mp;
+export function enableMountPromise() {
+    mountPromise=mp();
+    return mountPromise;
 }
 export const timeout=(t)=>new Promise(s=>setTimeout(s,t));
 export async function loadPNode(env){
@@ -125,10 +131,6 @@ export async function init(env){
         pNode.boot({
             async init(o){
                 globalThis.FS=FS=o.FS.default;
-                /*console.log("Mounting RAM/IDB");
-                FS.mount("/tmp/","ram");
-                await FS.mountAsync("/idb/","idb");
-                console.log("Done");*/
                 s(pNode);
             }
         });
@@ -166,6 +168,7 @@ export function showMenus(rp){
     }
     btn("Insert<br/>Boot Disk",()=>insertBootDisk());
     btn("Factory<br/>Reset",()=>resetall());
+    btn("Full backup",()=>fullBackup());
     
     //console.log("rp",rp.exists());
     if(rp.exists()){
@@ -221,6 +224,7 @@ export function showMainmenus(rp) {
         const {main,auto, submenus}=menus[k];
         if (auto) hasAuto=true;
         btn(k,async ()=>{
+            await mountPromise;
             const mainF=fixrun(FS.get(main));
             rmbtn();
             process.env.boot=mainF.path();
