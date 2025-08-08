@@ -2,14 +2,26 @@
 <html lang="ja">
     <head>
 	<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=0" />    
-        <script>
-        window.addEventListener('error', function(event) {
-            if (event.target.tagName === 'SCRIPT') {
-                alert('Script error:'+event.target.src);
-            }
-            alert(event.message||event.toString());
-        }, true);
-        </script>
+<script>
+let alc=0;
+const alerts=(...a)=>{
+    alc++;
+    if (alc>=5) return;
+    return alert(...a);
+};
+window.addEventListener('error', function(event) {
+    if (event.target.tagName === 'SCRIPT') {
+        alert('Script error:'+event.target.src);
+    }
+    if (event.error) {
+        const e=event.error;
+        console.error(e);
+        alerts(((e.message||"")+(e.stack||""))||e.toString());
+    } else {
+        console.error(event);
+        alerts(event.toString());
+    }
+}, true);</script>
         <script type="module" src="upload.js"></script>
     </head>
     <body>

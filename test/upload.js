@@ -8,7 +8,7 @@ async function onload() {
     }
     const pNode=await boot.init({
         BOOT_DISK_URL:"https://github.com/hoge1e3/acepad-dev/archive/refs/heads/main.zip",
-        PNODE_URL: "../dist/index.js",
+        PNODE_URL: location.origin+"/dist/index.js",
         SETUP_URL:"acepad/setup.zip",
     });
     const FS=pNode.FS;
