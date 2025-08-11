@@ -10,6 +10,7 @@ export class ModuleEntry {
         ) {
     }
     _shouldReload():boolean {
+        if (!this.file.exists()) return false;// for preload module
         return /*this.isError()||*/this.file.lastUpdate()!==this.timestamp;
     }
     moduleType():FileBasedModuleType {
