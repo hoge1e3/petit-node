@@ -21,7 +21,15 @@ import { CompiledCJS, CompiledESModule, ModuleEntry } from "./Module.js";
 import { jsToBlobURL } from "./scriptTag.js";
 import { JSZip, PathUtil, zip } from "@hoge1e3/fs2";
 
-const core=setupCore();
+type Core={
+    FS:TFS,
+    os:any,
+    fs:any,
+    path:any,
+    process:any,
+    Buffer:BufferConstructor,
+};
+export let core:Core;//=setupCore();
 declare let globalThis:any;
 //declare let global:any;
 type SFile=sfile.SFile;
@@ -99,29 +107,8 @@ function mod2obj<T extends object>(o:T):T&{default:T}{
         return {...res, default:res};    
     }
 }
-/*
-function wrapFSGet(FS:TFS):TFS {
-    const props: (keyof TFS)[] = [
-        "get", "getEnv", "setEnv", "PathUtil", "zip", "SFile", "expand", "expandPath", "resolve",
-        "mount", "unmount", "getRootFS", "mountAsync","setDefaultPolicy",
-        "deps", "mimeTypes", "_normalizePath", "addMIMEType",
-    ];
-    const res={} as TFS;
-    for (let k of props) {
-        res[k]=(FS as any)[k];
-    }
-    const orig=res.get.bind(res);
-    res.get=(path:string):SFile=>{
-        if (path.startsWith("blob:")) {
-            path=urlToPath(path);
-        }
-        return orig(path);
-    }
-    (res as any).default=res;
-    return res;
-}*/
-// FS.get uses #privateMember which causes error on wrapFSGet.
-export const FS=/*wrapFSGet*/(mod2obj(core.FS));
+
+export let FS:TFS;//=(mod2obj(core.FS));
 
 const thisUrl=()=>(
     new URL(import.meta.url));
@@ -134,35 +121,23 @@ let pNode={
     ESModule: CompiledESModule, NodeModule, addAlias, addAliases,getAliases,
     ESModuleCompiler, CJSCompiler,
     convertStack, loadedModules, urlToFile, events, on, urlToPath, 
-    thisUrl, FS, require,core,version,
+    thisUrl, FS:null as (null|TFS), require,core:null as (null|Core),version,
+    file, getFS, getCore,
     default:{} as any,
 };
+export function file(path:string):SFile{
+    return FS.get(path);
+}
+export function getFS(){ return FS; }
+export function getCore(){ return core; }
 export default pNode;
 pNode.default=pNode;
-let builtInAliases:{[key:string]:ModuleValue}={
-    "petit-node": pNode,
-    "@hoge1e3/fs": FS,
-    "@hoge1e3/fs2": FS,
-    "@hoge1e3/sfile": sfile,
-    fs: genfs(core.fs),
-    os: core.os,
-    path: core.path,
-    process: core.process,
-    buffer: core.Buffer,
-    assert,
-    util,
-    chai,
-    "jszip": JSZip,
-    espree,
-};
-globalThis.process=globalThis.process||core.process;
-globalThis.Buffer=globalThis.Buffer||core.Buffer;
+let builtInAliases:{[key:string]:ModuleValue};
 function dupNodePrefix(keys:string[]){
     for (let k of keys) {
         builtInAliases[`node:${k}`]=builtInAliases[k];
     }
 }
-dupNodePrefix(["fs","os","path","process","assert","util"]);
 type Initializer=(p:{FS:typeof FS, pNode: typeof pNode })=>Promise<any>;
 
 type BootOptions={
@@ -174,6 +149,30 @@ export async function boot(options:BootOptions={
 }) {
     await initModuleGlobal();
     const {aliases, init}=options;
+    core=setupCore();
+    FS=mod2obj(core.FS);
+    pNode.FS=FS;
+    pNode.core=core;
+    builtInAliases={
+        "petit-node": pNode,
+        "@hoge1e3/fs": FS,
+        "@hoge1e3/fs2": FS,
+        "@hoge1e3/sfile": sfile,
+        fs: genfs(core.fs),
+        os: core.os,
+        path: core.path,
+        process: core.process,
+        buffer: core.Buffer,
+        assert,
+        util,
+        chai,
+        "jszip": JSZip,
+        espree,
+    };
+    dupNodePrefix(["fs","os","path","process","assert","util"]);
+    globalThis.process=globalThis.process||core.process;
+    globalThis.Buffer=globalThis.Buffer||core.Buffer;
+
     for (let k in builtInAliases) {
         addAlias(k, builtInAliases[k] as ModuleValue);
     }

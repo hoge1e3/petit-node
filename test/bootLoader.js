@@ -21,13 +21,16 @@ export function enableMountPromise() {
     return mountPromise;
 }
 export const timeout=(t)=>new Promise(s=>setTimeout(s,t));
+let pnode_mod;
 export async function loadPNode(env){
     if (!env.PNODE_URL) throw new Error("PNODE_URL should set");
-    pNode=await import(env.PNODE_URL);
-    Object.assign(process.env, env);
+    pnode_mod=await import(env.PNODE_URL);
+    pNode=pnode_mod.default;
+    /*Object.assign(process.env, env);
     process.env.PNODE_VER=pNode.version;
-    process.env.boot=process.env.TMP_BOOT||"/tmp/boot/";
+    process.env.boot=process.env.TMP_BOOT||"/tmp/boot/";*/
     FS=pNode.FS;
+    globalThis.pNode=pNode;
 }
 function status(...a){
     console.log(...a);
@@ -124,18 +127,18 @@ export function initCss(){
 }
 export async function init(env){
     await loadPNode(env);
-    return new Promise((s)=>{
-        initCss();
-        //stopBtn();
-        console.log("init");
-        pNode.boot({
-            async init(o){
-                globalThis.FS=FS=o.FS.default;
-                s(pNode);
-            }
-        });
-        //return pNode;
-    });
+    initCss();
+    //stopBtn();
+    console.log("init");
+    await pNode.boot();
+    console.log("pnode_mod", pnode_mod);
+    console.log("pnode_mod.FS", pnode_mod.FS);
+    console.log("pnode_mod.getFS", pnode_mod.getFS());
+    globalThis.FS=FS=pNode.FS.default;
+    Object.assign(process.env, env);
+    process.env.PNODE_VER=pNode.version;
+    process.env.boot=process.env.TMP_BOOT||"/tmp/boot/";
+    return pNode;
 }
 export function rmbtn(){
     for(let b of document.querySelectorAll('button')){
