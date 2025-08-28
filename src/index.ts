@@ -115,7 +115,7 @@ const thisUrl=()=>(
 export let events=new EventHandler();
 export let on=events.on.bind(events);
 let pNode={
-    boot, importModule, import: importModule, 
+    boot, importModule, import: importModule, init:boot, 
     createModuleURL, resolveEntry, 
     CompiledESModule, ModuleEntry, 
     ESModule: CompiledESModule, NodeModule, addAlias, addAliases,getAliases,
@@ -143,13 +143,14 @@ type Initializer=(p:{FS:typeof FS, pNode: typeof pNode })=>Promise<any>;
 type BootOptions={
     aliases: AliasHash|undefined,
     init: Initializer|undefined,
+    core: Core|undefined,
 };
 export async function boot(options:BootOptions={
-    aliases:undefined, init: undefined,
+    aliases:undefined, init: undefined, core: undefined,
 }) {
     await initModuleGlobal();
     const {aliases, init}=options;
-    core=setupCore();
+    core=options.core||setupCore();
     FS=mod2obj(core.FS);
     pNode.FS=FS;
     pNode.core=core;
@@ -186,6 +187,7 @@ export async function boot(options:BootOptions={
         return await importModule(file);            
     }
 }
+export const init=boot;
 const invalidSpec=()=>new Error("Invalid argument: either (file) or (str,file)");
 export function resolveEntry(path: string|SFile):ModuleEntry;
 export function resolveEntry(path: string, base: string|SFile):ModuleEntry;
