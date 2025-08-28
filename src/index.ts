@@ -188,7 +188,7 @@ export async function boot(options:BootOptions={
     }
 }
 const invalidSpec=()=>new Error("Invalid argument: either (file) or (str,file)");
-export function resolveEntry(path: SFile):ModuleEntry;
+export function resolveEntry(path: string|SFile):ModuleEntry;
 export function resolveEntry(path: string, base: string|SFile):ModuleEntry;
 export function resolveEntry(path: string|SFile ,base?:string|SFile):ModuleEntry{
     let mod:ModuleEntry;
@@ -199,7 +199,7 @@ export function resolveEntry(path: string|SFile ,base?:string|SFile):ModuleEntry
             typeof base==="string"?FS.get(base):base
         );
     } else {
-        if (typeof path==="string") throw invalidSpec();
+        if (typeof path==="string") path=FS.get(path);// throw invalidSpec();
         if(path.isDir()){
             mod=ModuleEntry.fromNodeModule(new NodeModule(path));
         }else{
@@ -208,7 +208,7 @@ export function resolveEntry(path: string|SFile ,base?:string|SFile):ModuleEntry
     }
     return mod;
 }
-export async function importModule(path: SFile):Promise<ModuleValue>;
+export async function importModule(path: string|SFile):Promise<ModuleValue>;
 export async function importModule(path: string, base: string|SFile):Promise<ModuleValue>;
 export async function importModule(path: string|SFile, base?:string|SFile):Promise<ModuleValue>{
     let ent;
@@ -221,7 +221,7 @@ export async function importModule(path: string|SFile, base?:string|SFile):Promi
         if (typeof path!=="string") throw invalidSpec();
         ent=resolveEntry(path,base);
     } else {
-        if (typeof path==="string") throw invalidSpec();
+        //if (typeof path==="string") throw invalidSpec();
         ent=resolveEntry(path);
     }
     const compiler=ESModuleCompiler.create();
