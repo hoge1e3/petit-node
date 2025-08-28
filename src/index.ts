@@ -33,7 +33,7 @@ export let core:Core;//=setupCore();
 declare let globalThis:any;
 //declare let global:any;
 type SFile=sfile.SFile;
-const VERSION_SRC="__VER__1.4.7__SION__";
+const VERSION_SRC="__VER__1.4.8__SION__";
 export let version=VERSION_SRC.replace(/\_\_VER\_\_/,"").replace(/\_\_SION\_\_/,"");
 function setupCore(){
     let res;
