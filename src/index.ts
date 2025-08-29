@@ -3,7 +3,8 @@
 import * as _FS from "@hoge1e3/fs2";
 import {EventHandler} from "@hoge1e3/events";
 import {convert} from "./convImport.js";
-import { /*liases as aliasStore,*/ initModuleGlobal, addAlias, addAliases,getAliases, addURL } from "./alias.js";
+import { initModuleGlobal, addAlias, addAliases,getAliases, addURL } from "./alias.js";
+export { addAlias, addAliases, getAliases } from "./alias.js";
 import { ESModuleCompiler, traceInvalidImport } from "./ESModule.js";
 export { ESModuleCompiler} from "./ESModule.js";
 import { NodeModule } from "./NodeModule.js";
@@ -18,6 +19,7 @@ import { Aliases, AliasHash, Module, ModuleValue, TFS } from "./types";
 export {require, CJSCompiler} from "./CommonJS.js";
 import {require, CJSCompiler} from "./CommonJS.js";
 import { CompiledCJS, CompiledESModule, ModuleEntry } from "./Module.js";
+export { CompiledESModule, ModuleEntry } from "./Module.js";
 import { jsToBlobURL } from "./scriptTag.js";
 import { JSZip, PathUtil, zip } from "@hoge1e3/fs2";
 
@@ -110,11 +112,12 @@ function mod2obj<T extends object>(o:T):T&{default:T}{
 
 export let FS:TFS;//=(mod2obj(core.FS));
 
-const thisUrl=()=>(
+export const thisUrl=()=>(
     new URL(import.meta.url));
 export let events=new EventHandler();
 export let on=events.on.bind(events);
-let pNode={
+export const ESModule=CompiledESModule;
+let pNode:(typeof import("./index.js"))&{import:any}={
     boot, importModule, import: importModule, init:boot, 
     createModuleURL, resolveEntry, 
     CompiledESModule, ModuleEntry, 
