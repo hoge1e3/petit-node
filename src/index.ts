@@ -31,7 +31,7 @@ type Core={
     process:any,
     Buffer:BufferConstructor,
 };
-export let core:Core;//=setupCore();
+export let core:Core|null=null;//=setupCore();
 declare let globalThis:any;
 //declare let global:any;
 type SFile=sfile.SFile;
@@ -110,7 +110,7 @@ function mod2obj<T extends object>(o:T):T&{default:T}{
     }
 }
 
-export let FS:TFS;//=(mod2obj(core.FS));
+export let FS:TFS|null=null;//=(mod2obj(core.FS));
 
 export const thisUrl=()=>(
     new URL(import.meta.url));
@@ -126,12 +126,17 @@ let pNode:(typeof import("./index.js"))&{import:any}={
     convertStack, loadedModules, urlToFile, events, on, urlToPath, 
     thisUrl, FS:null as (null|TFS), require,core:null as (null|Core),version,
     file, getFS, getCore,
+    addPrecompiledCJSModule,
+    addPrecompiledESModule,
     default:{} as any,
 };
 export function file(path:string):SFile{
-    return FS.get(path);
+    return getFS().get(path);
 }
-export function getFS(){ return FS; }
+export function getFS(): TFS { 
+    if (!FS) throw new Error("FS is not set");
+    return FS; 
+}
 export function getCore(){ return core; }
 export default pNode;
 pNode.default=pNode;
@@ -200,10 +205,10 @@ export function resolveEntry(path: string|SFile ,base?:string|SFile):ModuleEntry
         if (typeof path!=="string") throw invalidSpec();
         mod=ModuleEntry.resolve(
             path,
-            typeof base==="string"?FS.get(base):base
+            typeof base==="string"?getFS().get(base):base
         );
     } else {
-        if (typeof path==="string") path=FS.get(path);// throw invalidSpec();
+        if (typeof path==="string") path=getFS().get(path);// throw invalidSpec();
         if(path.isDir()){
             mod=ModuleEntry.fromNodeModule(new NodeModule(path));
         }else{
@@ -283,7 +288,7 @@ export function urlToFile(url:string):SFile {
     throw new Error(`${url}(${mod.path}) is not associated to a file.`);
 }
 export function addPrecompiledESModule(path:string, timestamp:number, compiledCode: string, dependencies:Module[]):CompiledESModule {
-    const file=FS.get(path);
+    const file=getFS().get(path);
     const aliases=getAliases();
     const entry=ModuleEntry.fromFile(file, timestamp);
     const deps=dependencies;
@@ -293,7 +298,7 @@ export function addPrecompiledESModule(path:string, timestamp:number, compiledCo
     return res;
 }
 export function addPrecompiledCJSModule(path:string, timestamp:number, compiledCode:Function, dependencies:Module[]):CompiledCJS {
-    const file=FS.get(path);
+    const file=getFS().get(path);
     const aliases=getAliases();
     const base=file.up()!;
     const require=(path:string)=>{
