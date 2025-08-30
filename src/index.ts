@@ -117,7 +117,7 @@ export const thisUrl=()=>(
 export let events=new EventHandler();
 export let on=events.on.bind(events);
 export const ESModule=CompiledESModule;
-let pNode:(typeof import("./index.js"))&{import:any}={
+let pNode:(typeof import("./index.js"))&{import:typeof importModule}={
     boot, importModule, import: importModule, init:boot, 
     createModuleURL, resolveEntry, 
     CompiledESModule, ModuleEntry, 
@@ -179,7 +179,14 @@ export async function boot(options:BootOptions={
         espree,
     };
     dupNodePrefix(["fs","os","path","process","assert","util"]);
-    globalThis.process=globalThis.process||core.process;
+    /*
+    It seems not to be used... Especially in nw.js (globalThis.process===global.process)
+    const extendEnv=(p:any)=>{
+        const r={...p};
+        r.env=Object.assign({},r.env);
+        return r;
+    };*/
+    globalThis.process=globalThis.process||(core.process);
     globalThis.Buffer=globalThis.Buffer||core.Buffer;
 
     for (let k in builtInAliases) {
