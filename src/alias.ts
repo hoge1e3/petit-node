@@ -28,6 +28,7 @@ export function addURL(module:Module, properties?:string[]) {
 import ${ginfName} from "${ginf.url}";
 let ${valueName}=${ginfName}.aliases.getByPath("${module.path}").value;
 ${valueToESCode(valueName, value, keys)}
+//# sourceURL=pnode-alias/${module.path}
 `;
     let blobUrl = jsToBlobURL(jsCodeString);
     module.url=blobUrl;
