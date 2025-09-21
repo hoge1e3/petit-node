@@ -23,11 +23,19 @@ export { CompiledESModule, ModuleEntry } from "./Module.js";
 import { jsToBlobURL } from "./scriptTag.js";
 import { JSZip, PathUtil, zip } from "@hoge1e3/fs2";
 
-const core=setupCore();
+type Core={
+    FS:TFS,
+    os:any,
+    fs:any,
+    path:any,
+    process:any,
+    Buffer:BufferConstructor,
+};
+export let core:Core|null=null;//=setupCore();
 declare let globalThis:any;
 //declare let global:any;
 type SFile=sfile.SFile;
-const VERSION_SRC="__VER__1.4.7__SION__";
+const VERSION_SRC="__VER__1.5.0__SION__";
 export let version=VERSION_SRC.replace(/\_\_VER\_\_/,"").replace(/\_\_SION\_\_/,"");
 function setupCore(){
     let res;
@@ -101,82 +109,86 @@ function mod2obj<T extends object>(o:T):T&{default:T}{
         return {...res, default:res};    
     }
 }
-/*
-function wrapFSGet(FS:TFS):TFS {
-    const props: (keyof TFS)[] = [
-        "get", "getEnv", "setEnv", "PathUtil", "zip", "SFile", "expand", "expandPath", "resolve",
-        "mount", "unmount", "getRootFS", "mountAsync","setDefaultPolicy",
-        "deps", "mimeTypes", "_normalizePath", "addMIMEType",
-    ];
-    const res={} as TFS;
-    for (let k of props) {
-        res[k]=(FS as any)[k];
-    }
-    const orig=res.get.bind(res);
-    res.get=(path:string):SFile=>{
-        if (path.startsWith("blob:")) {
-            path=urlToPath(path);
-        }
-        return orig(path);
-    }
-    (res as any).default=res;
-    return res;
-}*/
-// FS.get uses #privateMember which causes error on wrapFSGet.
-export const FS=/*wrapFSGet*/(mod2obj(core.FS));
+
+export let FS:TFS|null=null;//=(mod2obj(core.FS));
 
 export const thisUrl=()=>(
     new URL(import.meta.url));
 export let events=new EventHandler();
 export let on=events.on.bind(events);
 export const ESModule=CompiledESModule;
-let pNode:(typeof import("./index.js"))&{import:any}={
-    boot, importModule, import: importModule, 
+let pNode:(typeof import("./index.js"))&{import:typeof importModule}={
+    boot, importModule, import: importModule, init:boot, 
     createModuleURL, resolveEntry, 
     CompiledESModule, ModuleEntry, 
     ESModule: CompiledESModule, NodeModule, addAlias, addAliases,getAliases,
     ESModuleCompiler, CJSCompiler,
     convertStack, loadedModules, urlToFile, events, on, urlToPath, 
-    thisUrl, FS, require, core,version,
+    thisUrl, FS:null as (null|TFS), require,core:null as (null|Core),version,
+    file, getFS, getCore,
+    addPrecompiledCJSModule,
+    addPrecompiledESModule,
     default:{} as any,
 };
+export function file(path:string):SFile{
+    return getFS().get(path);
+}
+export function getFS(): TFS { 
+    if (!FS) throw new Error("FS is not set");
+    return FS; 
+}
+export function getCore(){ return core; }
 export default pNode;
 pNode.default=pNode;
-let builtInAliases:{[key:string]:ModuleValue}={
-    "petit-node": pNode,
-    "@hoge1e3/fs": FS,
-    "@hoge1e3/fs2": FS,
-    "@hoge1e3/sfile": sfile,
-    fs: genfs(core.fs),
-    os: core.os,
-    path: core.path,
-    process: core.process,
-    buffer: core.Buffer,
-    assert,
-    util,
-    chai,
-    "jszip": JSZip,
-    espree,
-};
-globalThis.process=globalThis.process||core.process;
-globalThis.Buffer=globalThis.Buffer||core.Buffer;
+let builtInAliases:{[key:string]:ModuleValue};
 function dupNodePrefix(keys:string[]){
     for (let k of keys) {
         builtInAliases[`node:${k}`]=builtInAliases[k];
     }
 }
-dupNodePrefix(["fs","os","path","process","assert","util"]);
 type Initializer=(p:{FS:typeof FS, pNode: typeof pNode })=>Promise<any>;
 
 type BootOptions={
     aliases: AliasHash|undefined,
     init: Initializer|undefined,
+    core: Core|undefined,
 };
 export async function boot(options:BootOptions={
-    aliases:undefined, init: undefined,
+    aliases:undefined, init: undefined, core: undefined,
 }) {
     await initModuleGlobal();
     const {aliases, init}=options;
+    core=options.core||setupCore();
+    FS=mod2obj(core.FS);
+    pNode.FS=FS;
+    pNode.core=core;
+    builtInAliases={
+        "petit-node": pNode,
+        "@hoge1e3/fs": FS,
+        "@hoge1e3/fs2": FS,
+        "@hoge1e3/sfile": sfile,
+        fs: genfs(core.fs),
+        os: core.os,
+        path: core.path,
+        process: core.process,
+        buffer: core.Buffer,
+        assert,
+        util,
+        chai,
+        "jszip": JSZip,
+        espree,
+    };
+    dupNodePrefix(["fs","os","path","process","assert","util"]);
+    /*
+    It seems not to be used... Especially in nw.js (globalThis.process===global.process)
+    const extendEnv=(p:any)=>{
+        const r={...p};
+        r.env=Object.assign({},r.env);
+        return r;
+    };*/
+    globalThis.process=globalThis.process||(core.process);
+    globalThis.Buffer=globalThis.Buffer||core.Buffer;
+
     for (let k in builtInAliases) {
         addAlias(k, builtInAliases[k] as ModuleValue);
     }
@@ -190,6 +202,7 @@ export async function boot(options:BootOptions={
         return await importModule(file);            
     }
 }
+export const init=boot;
 const invalidSpec=()=>new Error("Invalid argument: either (file) or (str,file)");
 export function resolveEntry(path: string|SFile):ModuleEntry;
 export function resolveEntry(path: string, base: string|SFile):ModuleEntry;
@@ -199,10 +212,10 @@ export function resolveEntry(path: string|SFile ,base?:string|SFile):ModuleEntry
         if (typeof path!=="string") throw invalidSpec();
         mod=ModuleEntry.resolve(
             path,
-            typeof base==="string"?FS.get(base):base
+            typeof base==="string"?getFS().get(base):base
         );
     } else {
-        if (typeof path==="string") path=FS.get(path);// throw invalidSpec();
+        if (typeof path==="string") path=getFS().get(path);// throw invalidSpec();
         if(path.isDir()){
             mod=ModuleEntry.fromNodeModule(new NodeModule(path));
         }else{
@@ -282,7 +295,7 @@ export function urlToFile(url:string):SFile {
     throw new Error(`${url}(${mod.path}) is not associated to a file.`);
 }
 export function addPrecompiledESModule(path:string, timestamp:number, compiledCode: string, dependencies:Module[]):CompiledESModule {
-    const file=FS.get(path);
+    const file=getFS().get(path);
     const aliases=getAliases();
     const entry=ModuleEntry.fromFile(file, timestamp);
     const deps=dependencies;
@@ -292,7 +305,7 @@ export function addPrecompiledESModule(path:string, timestamp:number, compiledCo
     return res;
 }
 export function addPrecompiledCJSModule(path:string, timestamp:number, compiledCode:Function, dependencies:Module[]):CompiledCJS {
-    const file=FS.get(path);
+    const file=getFS().get(path);
     const aliases=getAliases();
     const base=file.up()!;
     const require=(path:string)=>{
