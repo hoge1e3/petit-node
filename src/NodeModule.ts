@@ -52,10 +52,12 @@ export class NodeModule {
         } else {
             exp={".": "./index.js"};
         }
-        if (!exp[path]) {
+        if (exp[path]) return p.sibling(exp[path]);
+        return p.sibling(path);
+        /*if (!exp[path]) {
             throw new Error(`${p} has no entry '${path}'.`);
         }
-        return p.sibling(exp[path]);
+        return p.sibling(exp[path]);*/
     }
     moduleType():FileBasedModuleType {
         const o=this.packageJson();
