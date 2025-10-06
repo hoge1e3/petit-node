@@ -23,7 +23,7 @@ function isReservedWord(s:string){
 export function valueToESCode(valueName:string, value:ModuleValue, properties?:string[]) {
     const keys=properties||Object.keys(value as any);
     const bindn="__bind1234__"
-    const bind=`const ${bindn}=(f)=>typeof f==="function"? f.bind(${valueName}): f;`
+    const bind=`const ${bindn}=(f)=>typeof f==="function" && !(f+"").startsWith("class") ? f.bind(${valueName}): f;`
     const jsCodeString=keys.map((key)=>
         key=="default"?
             `export default ${valueName}.default;`:
