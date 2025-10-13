@@ -23,8 +23,8 @@ export type TFS={
     expandPath: typeof import("@hoge1e3/fs2").expandPath;
     resolve: typeof import("@hoge1e3/fs2").resolve;
     //--- not for nw.js, only petit-fs ---
-    mount?(mountPoint:string, fs:string|FSClass):void;
-    mountAsync?(mountPoint:string, fs:string):Promise<void>;    
+    mount?(mountPoint:string, fs:string|FSClass):FSClass;
+    mountAsync?(mountPoint:string, fs:string):Promise<FSClass>;    
     unmount?(mountPoint:string):void;
     getRootFS?():RootFS;
     //--- see SFile.ts 
