@@ -71,7 +71,7 @@ export class NodeModule {
             } else {
                 entry = exportsField[subpath];
             }
-            if (!entry) throw new Error(`exports にサブパス ${subpath} が定義されていません`);
+            if (!entry) throw new Error(`${this.dir}: exports にサブパス ${subpath} が定義されていません`);
             // 文字列のみの場合（例: "exports": "./dist/index.js"）
             if (typeof entry === "string") {
                 const theType=typeByExt(entry);
@@ -85,7 +85,7 @@ export class NodeModule {
                     if (theType==="CJS") {
                         return { path: entry, resolvedType: wantModuleType };
                     } else {
-                        throw new Error(`CommonJS から ESM(${entry}) を参照できません`);
+                        throw new Error(`${this.dir}: CommonJS から ESM(${entry}) を参照できません`);
                     }
                 }
             }
@@ -101,26 +101,23 @@ export class NodeModule {
                     // ESM要求 → CJSフォールバック可
                     return { path: requireEntry, resolvedType: "CJS" };
                 } else {
-                    throw new Error(`サブパス ${subpath} に対応する esm/cjs 出力がありません`);
+                    throw new Error(`${this.dir}: サブパス ${subpath} に対応する esm/cjs 出力がありません`);
                 }
             } else if (wantModuleType === "CJS") {
                 if (requireEntry) {
                     return { path: requireEntry, resolvedType: "CJS" };
                 } else if (importEntry) {
-                    throw new Error(`CommonJS から ESM(${importEntry}) を参照できません`);
+                    throw new Error(`${this.dir}: CommonJS から ESM(${importEntry}) を参照できません`);
                 } else {
-                    throw new Error(`サブパス ${subpath} に require/import の定義がありません`);
+                    throw new Error(`${this.dir}: サブパス ${subpath} に require/import の定義がありません`);
                 }
             } else {
-                throw new Error(`moduleType は "ES" または "CJS" で指定してください`);
+                throw new Error(`${this.dir}: moduleType は "ES" または "CJS" で指定してください`);
             }
         }
         else {// --- ② exports が無く main のみの場合 ---
             if (subpath === "." || subpath === "") {
-                if (!packageJson.main) {
-                    throw new Error(`Cannot resolve ${subpath}. main is not defined`);
-                }
-                subpath=packageJson.main;
+                subpath=packageJson.main||"./index.js";
             }
             const theType=typeByExt(subpath);
             if (wantModuleType === "ES") {
@@ -133,9 +130,9 @@ export class NodeModule {
                 if (theType==="CJS") {
                     return { path: subpath, resolvedType: "CJS" };
                 }
-                throw new Error(`CommonJS から ESM(${module}) を参照できません`);
+                throw new Error(`${this.dir}: CommonJS から ESM(${module}) を参照できません`);
             }
-            throw new Error(`Invalid moduleType ${wantModuleType}.`);
+            throw new Error(`${this.dir}: Invalid moduleType ${wantModuleType}.`);
         }
     }
     getEntry(wantModuleType:FileBasedModuleType, subpath: string="."):RawModuleEntry {
