@@ -1,37 +1,46 @@
 import { SFile } from "@hoge1e3/sfile";
 import { NodeModule } from "./NodeModule.js";
 import * as FS from "@hoge1e3/fs2";
-import { FileBasedModuleType, IModuleCache, Module, ModuleValue } from "./types";
+import { FileBasedModuleType, IModuleCache, Module, ModuleValue, RawModuleEntry } from "./types";
 export class ModuleEntry {
+    public file: SFile;
+    public type: FileBasedModuleType;
     constructor(
-        public file: SFile,
+        public entry: RawModuleEntry,
         public sourceCode: string,
         public timestamp: number,
         ) {
+            this.file=entry.file;
+            this.type=entry.type;
     }
     _shouldReload():boolean {
         if (!this.file.exists()) return false;// for preload module
         return /*this.isError()||*/this.file.lastUpdate()!==this.timestamp;
     }
     moduleType():FileBasedModuleType {
-        return NodeModule.moduleTypeOfFile(this.file);
+        return this.type;// NodeModule.moduleTypeOfFile(this.file);
     }
-    static fromFile(file:SFile, timestamp:number=file.lastUpdate()):ModuleEntry {
-        const newEntry=new ModuleEntry(file, file.text(), timestamp);
+    static fromFile(type:FileBasedModuleType, file:SFile, timestamp:number=file.lastUpdate()):ModuleEntry {
+        const newEntry=new ModuleEntry({type,file}, file.text(), timestamp);
         return newEntry;
     }
-    static resolve(path:string,base:SFile):ModuleEntry{
-        if(path.match(/^\./)){
-            return this.fromFile(base.rel(path));
-        }else if(path.match(/^\//)){
-            return this.fromFile(FS.get(path));
+    static resolve(wantModuleType:FileBasedModuleType,path:string,base:SFile):ModuleEntry{
+        if (path.match(/^[\.\/]/)) {
+            const file=path.match(/^\./)?
+                base.rel(path):FS.get(path);
+            const mtype=NodeModule.moduleTypeOfFile(file);
+            if (wantModuleType==="CJS" && mtype==="ES") {
+                throw new Error(`Cannot import es module '${file}' from cjs`);
+            }
+            return ModuleEntry.fromFile(mtype, file);
         }else {
             const [main,sub]=NodeModule.parsePath(path);
-            return this.fromNodeModule(NodeModule.resolve(main,base),sub);
+            return this.fromNodeModule(wantModuleType, NodeModule.resolve(main,base),sub);
         }
     }
-    static fromNodeModule(m:NodeModule, subPath="."):ModuleEntry {
-        return ModuleEntry.fromFile(m.getEntry(subPath));
+    static fromNodeModule(wantModuleType:FileBasedModuleType, m:NodeModule, subPath="."):ModuleEntry {
+        const {file, type}=m.getEntry(wantModuleType, subPath);
+        return ModuleEntry.fromFile(type, file);
     }
 }
 export interface FileBasedModule extends Module {

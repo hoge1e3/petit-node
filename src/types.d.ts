@@ -52,6 +52,9 @@ export interface Module{
     shouldReload(): boolean;
     dispose(): void;
 }
+export type RawModuleEntry={
+    file: SFile, type: FileBasedModuleType,
+};
 export type ModuleValue=unknown;
 export type GlobalValue={
     aliases: IModuleCache,
