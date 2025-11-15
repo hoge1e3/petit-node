@@ -185,7 +185,7 @@ export class NodeModule {
                 }
             }
         }
-        let np=FS.getEnv("NODE_PATH");
+        let np=process.env.NODE_PATH;
         if (np) {
             const nps=np.split(":");
             for(let nnp of nps) {

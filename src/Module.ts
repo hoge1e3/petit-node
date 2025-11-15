@@ -2,6 +2,21 @@ import { SFile } from "@hoge1e3/sfile";
 import { NodeModule } from "./NodeModule.js";
 import * as FS from "@hoge1e3/fs2";
 import { FileBasedModuleType, IModuleCache, Module, ModuleValue, RawModuleEntry } from "./types";
+function cjsFallback(file:SFile) {
+    if (file.name().includes(".")) return file;
+    const tries=[
+        ()=>file.sibling(file.name()+".js"),
+        //<path>.json
+        ()=>file.rel("index.js"),
+        //<path>/index.json
+    ];
+    for (let t of tries) {
+        try {
+            const f=t();if (f.exists()) return f; 
+        }catch(e){}
+    }
+    throw new Error(`no cjs module for ${file.path()} found.`);
+}
 export class ModuleEntry {
     public file: SFile;
     public type: FileBasedModuleType;
@@ -20,14 +35,16 @@ export class ModuleEntry {
     moduleType():FileBasedModuleType {
         return this.type;// NodeModule.moduleTypeOfFile(this.file);
     }
-    static fromFile(type:FileBasedModuleType, file:SFile, timestamp:number=file.lastUpdate()):ModuleEntry {
-        const newEntry=new ModuleEntry({type,file}, file.text(), timestamp);
+    static fromFile(wantModuleType:FileBasedModuleType, file:SFile, timestamp:number=file.lastUpdate()):ModuleEntry {
+        if (wantModuleType==="CJS") file=cjsFallback(file);
+        const newEntry=new ModuleEntry({type: wantModuleType,file}, file.text(), timestamp);
         return newEntry;
     }
     static resolve(wantModuleType:FileBasedModuleType,path:string,base:SFile):ModuleEntry{
         if (path.match(/^[\.\/]/)) {
-            const file=path.match(/^\./)?
+            let file=path.match(/^\./)?
                 base.rel(path):FS.get(path);
+            if (wantModuleType==="CJS") file=cjsFallback(file);
             const mtype=NodeModule.moduleTypeOfFile(file);
             if (wantModuleType==="CJS" && mtype==="ES") {
                 throw new Error(`Cannot import es module '${file}' from cjs`);
