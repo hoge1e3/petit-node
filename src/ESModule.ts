@@ -98,7 +98,7 @@ export class ESModuleCompiler {
                 if (path.match(/^https?:/)) {
                     return path;
                 }
-                const e=ModuleEntry.resolve(path,base);
+                const e=ModuleEntry.resolve("ES", path,base);
                 this.depChecker.add(entry.file.path(), e.file.path());
                 let c:Module,url:string;
                 if(e.moduleType()==="CJS") {
