@@ -1,6 +1,7 @@
 import { SFile } from "@hoge1e3/sfile";
 import * as FS from "@hoge1e3/fs2";
 import { FileBasedModuleType, RawModuleEntry } from "./types";
+import * as rex from "resolve.exports";
 const node_modules="node_modules/";
 const package_json="package.json";
 type PackageJson={
@@ -47,8 +48,13 @@ export class NodeModule {
      * @returns {{ path: string, resolvedType: FileBasedModuleType }} 解決結果
      * @throws {Error} - 定義が見つからない／不正な組み合わせの場合
      */
-    resolveExport(wantModuleType:FileBasedModuleType, subpath: string="."):{ path: string, resolvedType: FileBasedModuleType } {
-        const packageJson=this.packageJson();
+    getEntry(wantModuleType:FileBasedModuleType, subpath: string="."):RawModuleEntry {
+        if (wantModuleType==="CJS") {
+            return this.resolveCJS(subpath);
+        } else {
+            return this.resolveES(subpath);
+        }
+        /*const packageJson=this.packageJson();
         const exportsField = packageJson.exports as any;
         const defaultType=this.moduleType();
         const getExt=(s:string):".js"|".mjs"|".cjs"=>{
@@ -133,15 +139,16 @@ export class NodeModule {
                 throw new Error(`${this.dir}: CommonJS から ESM(${module}) を参照できません`);
             }
             throw new Error(`${this.dir}: Invalid moduleType ${wantModuleType}.`);
-        }
+        }*/
     }
+    /*
     getEntry(wantModuleType:FileBasedModuleType, subpath: string="."):RawModuleEntry {
         const {path, resolvedType}=this.resolveExport(wantModuleType, subpath);
         return {
             file: this.dir.rel(path),
             type: resolvedType,
         }
-    }
+    }*/
     /*getEntry(path="."): SFile {
         const p=this.packageJsonFile();
         const o=this.packageJson();
@@ -200,5 +207,55 @@ export class NodeModule {
         }
         throw new Error(`${name} not found from ${base}`);
     }
+
+    resolveESRaw(path="."):rex.Exports.Output[0]|undefined{
+        try {
+            const pkg=this.packageJson();
+            const r=rex.exports(pkg, path);
+            if (r) return r[0];
+        } catch(e){
+        }
+    }
+    resolveCJSRaw(path="."):rex.Exports.Output[0]|undefined{
+        try {
+            const pkg=this.packageJson();
+            const r=rex.exports(pkg, path, {require:true});
+            if (r) return r[0];
+        } catch(e){
+        }
+    }
+    resolveLegacy(){
+        try {
+            const pkg=this.packageJson();
+            return rex.legacy(pkg,{browser:false,fields:["main"]});
+        } catch(e){
+        }
+    }
+    resolveES(subpath="."):RawModuleEntry {
+        const e=this.resolveESRaw(subpath)||this.resolveLegacy()||subpath;
+        const f=pathFallback(this.dir.rel(e));
+        if (NodeModule.moduleTypeOfFile(f)==="ES") return {file: f, type:"ES"};
+        return this.resolveCJS(subpath);
+    }
+    resolveCJS(subpath="."):RawModuleEntry {
+        const c=this.resolveCJSRaw(subpath)||this.resolveLegacy()||subpath;
+        const f=pathFallback(this.dir.rel(c));
+        if (NodeModule.moduleTypeOfFile(f)==="CJS") return {file:f, type:"CJS"};
+        throw new Error(`${this.dir}: Cannot find subpath ${subpath}.`);
+    }
 }
+export function pathFallback(p:SFile) {
+  for (let np of [
+    ()=>p, 
+    ()=>!p.isDir() && p.sibling(p.name()+".js"),
+    ()=>p.isDir() && p.rel("index.js")
+    ]){
+    try {
+        const f=np();
+        if (f&&f.exists()&&!f.isDir()) return f; 
+    } catch(_e){}
+  }
+  throw new Error(p+" is not existent");
+}
+
 

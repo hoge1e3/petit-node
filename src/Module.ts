@@ -89,11 +89,14 @@ export class CompiledCJS implements FileBasedModule{
     public url:string|undefined;
     constructor(
         public readonly entry: ModuleEntry,
-        public readonly dependencies: Module[],
+        public readonly dependencyMap: Map<string, Module>,
         public readonly value: ModuleValue,
         public readonly generatedCode: string,
     ){
         this.path=entry.file.path();
+    }
+    get dependencies():Module[]{
+        return [...this.dependencyMap.values()];
     }
     shouldReload():boolean {
         if (this.entry._shouldReload()) return true;
