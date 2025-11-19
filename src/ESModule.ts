@@ -100,23 +100,10 @@ export class ESModuleCompiler {
                 }
                 const e=ModuleEntry.resolve("ES", path,base);
                 this.depChecker.add(entry.file.path(), e.file.path());
-                let c:Module,url:string;
-                if(e.moduleType()==="CJS") {
-                    if (this.oncompilestart) await this.oncompilestart({entry,isCJS:true});
-                    const cc=this.getCJSCompiler().compile(e);
-                    if (!cc.url) {
-                        url=addURL(cc);
-                    } else {
-                        url=cc.url;
-                    }
-                    c=cc;
-                }else{
-                    const ec=await this.compile(e);
-                    url=ec.url;
-                    c=ec;
-                }
-                deps.push(c);
-                return url;
+                const compiled: Module = await this.compileCJSFallback(e);
+                if (!compiled.url) throw new Error("URL is not set for "+e.file);
+                deps.push(compiled);
+                return compiled.url;
             },
             deps,
         };
@@ -125,7 +112,21 @@ export class ESModuleCompiler {
         aliases.add(compiled);
         return compiled;
     }
-
+    private async compileCJSFallback(e: ModuleEntry):Promise<Module> {
+        if (e.moduleType() === "CJS") {
+            if (this.oncompilestart) await this.oncompilestart({ entry:e, isCJS: true });
+            try{
+                const cc = this.getCJSCompiler().compile(e);
+                if (!cc.url) {
+                    addURL(cc);
+                }
+                return cc;
+            }catch(err) {
+                console.warn(e.file+" fallbacked CJS to ESM. Cause: "+err);
+            }
+        }
+        return await this.compile(e);
+    }
 };
 
 export function traceInvalidImport(original:Error, start:CompiledESModule) {
