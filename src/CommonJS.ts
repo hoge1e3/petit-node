@@ -4,7 +4,7 @@ import * as FS from "@hoge1e3/fs2";
 import { getAliases } from "./alias.js";
 import { CompiledCJS, ModuleEntry } from "./Module.js";
 
-type RequireFunc=((path:string)=>ModuleValue)&{deps:Set<Module>};
+type RequireFunc=((path:string)=>ModuleValue)&{deps:Map<string,Module>};
 //type Module={exports:ModuleValue};
 function wrapException(e:Error, pos:string) {
     const res=new Error("At "+pos+"\n"+e.message);
@@ -28,17 +28,17 @@ export class CJSCompiler {
         //if (!this.base) throw new Error(this.file+" cannot create base.");
     }
     requireFunc(base:SFile):RequireFunc {
-        const deps=new Set<Module>();
+        const deps=new Map<string, Module>();
         return Object.assign((path:string)=>{
             const module=this.cache.getByPath(path);// [A]
             if (module) {
                 if (!module.value) throw new Error(`Cannot import ${path}(seems to be ESM) from ${base}(CJS)`);
-                deps.add(module);
+                deps.set(path, module);
                 return module.value;
             }
             const e=ModuleEntry.resolve("CJS", path,base);
             const c=this.compile(e);
-            deps.add(c);
+            deps.set(path, c);
             return c.value;
         }, {deps});
     }
@@ -70,7 +70,7 @@ export class CJSCompiler {
         const args=this.requireArguments(file);
         func(...args);
         const module=args[2];
-        const compiled=new CompiledCJS( entry, [...args[0].deps], module.exports, funcSrc);
+        const compiled=new CompiledCJS( entry, args[0].deps, module.exports, funcSrc);
         this.cache.add(compiled);
         return compiled;
 

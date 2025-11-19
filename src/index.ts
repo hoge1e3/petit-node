@@ -305,7 +305,7 @@ export function addPrecompiledESModule(path:string, timestamp:number, compiledCo
     aliases.add(res);
     return res;
 }
-export function addPrecompiledCJSModule(path:string, timestamp:number, compiledCode:Function, dependencies:Module[]):CompiledCJS {
+export function addPrecompiledCJSModule(path:string, timestamp:number, compiledCode:Function, dependencyMap:Map<string,Module>):CompiledCJS {
     const file=getFS().get(path);
     const aliases=getAliases();
     const base=file.up()!;
@@ -321,8 +321,7 @@ export function addPrecompiledCJSModule(path:string, timestamp:number, compiledC
     const args=[require, exports, module, filename, dirname ];
     const value=compiledCode(...args);
     const entry=ModuleEntry.fromFile("CJS",file,timestamp);
-    const deps=dependencies;
-    const res=new CompiledCJS(entry, deps, value, "/*preCompiledModule*/"+compiledCode);
+    const res=new CompiledCJS(entry, dependencyMap, value, "/*preCompiledModule*/"+compiledCode);
     aliases.add(res);
     addURL(res);
     return res
