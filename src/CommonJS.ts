@@ -36,7 +36,7 @@ export class CJSCompiler {
                 deps.set(path, module);
                 return module.value;
             }
-            const e=ModuleEntry.resolve("CJS", path,base);
+            const e=ModuleEntry.resolve("require", path,base);
             const c=this.compile(e);
             deps.set(path, c);
             return c.value;
@@ -101,5 +101,5 @@ export function require(porf:string|SFile, base?:SFile|string):ModuleValue {
     } else {
         fbase=base;
     }
-    return new CJSCompiler().compile(ModuleEntry.resolve("CJS", path,fbase)).value;
+    return new CJSCompiler().compile(ModuleEntry.resolve("require", path,fbase)).value;
 }

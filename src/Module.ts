@@ -1,63 +1,40 @@
 import { SFile } from "@hoge1e3/sfile";
-import { NodeModule } from "./NodeModule.js";
+import { NodeModule, pathFallback } from "./NodeModule.js";
 import * as FS from "@hoge1e3/fs2";
-import { FileBasedModuleType, IModuleCache, Module, ModuleValue, RawModuleEntry } from "./types";
-function cjsFallback(file:SFile) {
-    if (file.name().includes(".")) return file;
-    const tries=[
-        ()=>file.sibling(file.name()+".js"),
-        //<path>.json
-        ()=>file.rel("index.js"),
-        //<path>/index.json
-    ];
-    for (let t of tries) {
-        try {
-            const f=t();if (f.exists()) return f; 
-        }catch(e){}
-    }
-    throw new Error(`no cjs module for ${file.path()} found.`);
-}
+import { FileBasedModuleType, IModuleCache, ImportOrRequire, Module, ModuleValue } from "./types";
+
 export class ModuleEntry {
-    public file: SFile;
-    public type: FileBasedModuleType;
     constructor(
-        public entry: RawModuleEntry,
+        public file: SFile,
         public sourceCode: string,
         public timestamp: number,
         ) {
-            this.file=entry.file;
-            this.type=entry.type;
     }
     _shouldReload():boolean {
         if (!this.file.exists()) return false;// for preload module
         return /*this.isError()||*/this.file.lastUpdate()!==this.timestamp;
     }
     moduleType():FileBasedModuleType {
-        return this.type;// NodeModule.moduleTypeOfFile(this.file);
+        return NodeModule.moduleTypeOfFile(this.file);
     }
-    static fromFile(wantModuleType:FileBasedModuleType, file:SFile, timestamp:number=file.lastUpdate()):ModuleEntry {
-        if (wantModuleType==="CJS") file=cjsFallback(file);
-        const newEntry=new ModuleEntry({type: wantModuleType,file}, file.text(), timestamp);
+    static fromFile(file:SFile, timestamp:number=file.lastUpdate()):ModuleEntry {
+        const newEntry=new ModuleEntry(file, file.text(), timestamp);
         return newEntry;
     }
-    static resolve(wantModuleType:FileBasedModuleType,path:string,base:SFile):ModuleEntry{
+    static resolve(wantModuleType:ImportOrRequire,path:string,base:SFile):ModuleEntry{
         if (path.match(/^[\.\/]/)) {
             let file=path.match(/^\./)?
                 base.rel(path):FS.get(path);
-            if (wantModuleType==="CJS") file=cjsFallback(file);
-            const mtype=NodeModule.moduleTypeOfFile(file);
-            if (wantModuleType==="CJS" && mtype==="ES") {
-                throw new Error(`Cannot import es module '${file}' from cjs`);
-            }
-            return ModuleEntry.fromFile(mtype, file);
+            if (wantModuleType==="require") file=pathFallback(file);
+            return ModuleEntry.fromFile(file);
         }else {
             const [main,sub]=NodeModule.parsePath(path);
             return this.fromNodeModule(wantModuleType, NodeModule.resolve(main,base),sub);
         }
     }
-    static fromNodeModule(wantModuleType:FileBasedModuleType, m:NodeModule, subPath="."):ModuleEntry {
-        const {file, type}=m.getEntry(wantModuleType, subPath);
-        return ModuleEntry.fromFile(type, file);
+    static fromNodeModule(wantModuleType:ImportOrRequire, m:NodeModule, subPath="."):ModuleEntry {
+        const file=m.getEntry(wantModuleType, subPath);
+        return ModuleEntry.fromFile(file);
     }
 }
 export interface FileBasedModule extends Module {

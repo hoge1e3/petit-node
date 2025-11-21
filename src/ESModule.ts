@@ -98,7 +98,7 @@ export class ESModuleCompiler {
                 if (path.match(/^https?:/)) {
                     return path;
                 }
-                const e=ModuleEntry.resolve("ES", path,base);
+                const e=ModuleEntry.resolve("import", path,base);
                 this.depChecker.add(entry.file.path(), e.file.path());
                 const compiled: Module = await this.compileCJSFallback(e);
                 if (!compiled.url) throw new Error("URL is not set for "+e.file);

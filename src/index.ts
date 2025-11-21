@@ -15,7 +15,7 @@ import * as chai from "chai";
 import assert from "@hoge1e3/assert";// Replace with assert polyfill, chai.assert is slow.
 import * as util from "@hoge1e3/util";
 import * as sfile from "@hoge1e3/sfile";
-import { Aliases, AliasHash, FileBasedModuleType, Module, ModuleValue, TFS } from "./types";
+import { Aliases, AliasHash, FileBasedModuleType, ImportOrRequire, Module, ModuleValue, TFS } from "./types";
 export {require, CJSCompiler} from "./CommonJS.js";
 import {require, CJSCompiler} from "./CommonJS.js";
 import { CompiledCJS, CompiledESModule, ModuleEntry } from "./Module.js";
@@ -204,9 +204,9 @@ export async function boot(options:BootOptions={
 }
 export const init=boot;
 const invalidSpec=()=>new Error("Invalid argument: either (file) or (str,file)");
-export function resolveEntry(wantModuleType: FileBasedModuleType, path: string|SFile):ModuleEntry;
-export function resolveEntry(wantModuleType: FileBasedModuleType, path: string, base: string|SFile):ModuleEntry;
-export function resolveEntry(wantModuleType: FileBasedModuleType, path: string|SFile ,base?:string|SFile):ModuleEntry{
+export function resolveEntry(wantModuleType: ImportOrRequire, path: string|SFile):ModuleEntry;
+export function resolveEntry(wantModuleType: ImportOrRequire, path: string, base: string|SFile):ModuleEntry;
+export function resolveEntry(wantModuleType: ImportOrRequire, path: string|SFile ,base?:string|SFile):ModuleEntry{
     let mod:ModuleEntry;
     if(base){
         if (typeof path!=="string") throw invalidSpec();
@@ -220,7 +220,7 @@ export function resolveEntry(wantModuleType: FileBasedModuleType, path: string|S
         if(path.isDir()){
             mod=ModuleEntry.fromNodeModule(wantModuleType, new NodeModule(path));
         }else{
-            mod=ModuleEntry.fromFile(wantModuleType,path);
+            mod=ModuleEntry.fromFile(path);
         }
     }
     return mod;
@@ -236,10 +236,10 @@ export async function importModule(path: string|SFile, base?:string|SFile):Promi
         return incache.value;
     } else if (base) {
         if (typeof path!=="string") throw invalidSpec();
-        ent=resolveEntry("ES",path,base);
+        ent=resolveEntry("import",path,base);
     } else {
         //if (typeof path==="string") throw invalidSpec();
-        ent=resolveEntry("ES", path);
+        ent=resolveEntry("import", path);
     }
     const compiler=ESModuleCompiler.create();
     const compiled=await compiler.compile(ent);
@@ -256,7 +256,7 @@ export async function importModule(path: string|SFile, base?:string|SFile):Promi
 }
 export async function createModuleURL(f:SFile):Promise<string>{
     const compiler=ESModuleCompiler.create();
-    return (await compiler.compile(ModuleEntry.fromFile("ES",f))).url;
+    return (await compiler.compile(ModuleEntry.fromFile(f))).url;
 }
 function isError(e:any):e is Error{
     return e&&typeof e.stack==="string";
@@ -298,7 +298,7 @@ export function urlToFile(url:string):SFile {
 export function addPrecompiledESModule(path:string, timestamp:number, compiledCode: string, dependencies:Module[]):CompiledESModule {
     const file=getFS().get(path);
     const aliases=getAliases();
-    const entry=ModuleEntry.fromFile("ES", file, timestamp);
+    const entry=ModuleEntry.fromFile(file, timestamp);
     const deps=dependencies;
     const url=jsToBlobURL(compiledCode);
     const res=new CompiledESModule(entry, deps, url, compiledCode);
@@ -312,7 +312,7 @@ export function addPrecompiledCJSModule(path:string, timestamp:number, compiledC
     const require=(path:string)=>{
         const builtin=aliases.getByPath(path);
         if (builtin?.value) return builtin.value;
-        const entry=ModuleEntry.resolve("CJS",path, base);
+        const entry=ModuleEntry.resolve("require",path, base);
         const module=aliases.getByPath(entry.file.path());
         if (module?.value) return module.value;
         throw new Error(`Cannot resolve ${path}`);
@@ -320,7 +320,7 @@ export function addPrecompiledCJSModule(path:string, timestamp:number, compiledC
     const exports={} as ModuleValue, module={exports}, filename=file.path(), dirname=base.path();
     const args=[require, exports, module, filename, dirname ];
     const value=compiledCode(...args);
-    const entry=ModuleEntry.fromFile("CJS",file,timestamp);
+    const entry=ModuleEntry.fromFile(file,timestamp);
     const res=new CompiledCJS(entry, dependencyMap, value, "/*preCompiledModule*/"+compiledCode);
     aliases.add(res);
     addURL(res);
