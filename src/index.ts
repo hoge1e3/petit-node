@@ -125,7 +125,7 @@ let pNode:(typeof import("./index.js"))&{import:typeof importModule}={
     ESModuleCompiler, CJSCompiler,
     convertStack, loadedModules, urlToFile, events, on, urlToPath, 
     thisUrl, FS:null as (null|TFS), require,core:null as (null|Core),version,
-    file, getFS, getCore,
+    file, getFS, getNodeLikeFs, getCore,
     addPrecompiledCJSModule,
     addPrecompiledESModule,
     default:{} as any,
@@ -136,6 +136,9 @@ export function file(path:string):SFile{
 export function getFS(): TFS { 
     if (!FS) throw new Error("FS is not set");
     return FS; 
+}
+export function getNodeLikeFs(): typeof import("node:fs") {
+    return getCore()?.fs;
 }
 export function getCore(){ return core; }
 export default pNode;
