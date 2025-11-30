@@ -38,62 +38,11 @@ type SFile=sfile.SFile;
 const VERSION_SRC="__VER__1.6.0__SION__";
 export let version=VERSION_SRC.replace(/\_\_VER\_\_/,"").replace(/\_\_SION\_\_/,"");
 function setupCore(){
-    let res;
-    if (typeof globalThis!=="undefined" && globalThis.__nwpolyfill) {
-        console.log("Using __nwpolyfill");
-        const {fs,path,os}=globalThis.__nwpolyfill;
-        const FS=new sfile.FileSystemFactory({fs, path, Buffer}) as unknown as TFS;
-        FS.getEnv=function getEnv(name?:string): any {
-            if (name == null) {
-                return process.env;
-            }
-            return process.env[name];
-        };
-        FS.setEnv=function setEnv(name:string, value:string){
-            process.env[name]=value;
-        };
-        FS.expand=function expand(str:string) {
-            return str.replace(/\$\{([a-zA-Z0-9_]+)\}/g, function (a, key) {
-                return FS.getEnv(key)||"";
-            });
-        }
-        FS.expandPath=function expandPath(path:string) {
-            path = FS.expand(path);
-            path = path.replace(/\/+/g, "/");
-            path = path.replace(/^[a-z][a-z]+:\//, (r)=>`${r}/`);
-            return path;
-        }
-        FS.resolve=function resolve(path:SFile|string, base?:SFile|string){ 
-            if (sfile.SFile.is(path)) return path;
-            path = FS.expandPath(path);
-            if (base && !PathUtil.isAbsolutePath(path)) {
-                if (typeof base==="string"){
-                    base = FS.expandPath(base);
-                    return FS.get(base).rel(path);    
-                } else {
-                    return base.rel(path);
-                }
-            }
-            return FS.get(path);
-        };
-        FS.PathUtil=PathUtil;
-        FS.zip=zip;
-        FS.SFile=sfile.SFile;
-        res={
-            FS,
-            os,
-            fs,
-            path,
-            process,
-            Buffer,
-        };
-    } else {
-        res={
-            FS:_FS as TFS, 
-            ..._FS.nodePolyfill,
-        };
-        res.process.release.name="petit-node";
-    }
+    let res={
+        FS:_FS as TFS, 
+        ..._FS.nodePolyfill,
+    };
+    res.process.release.name="petit-node";
     return res;
 }
 function mod2obj<T extends object>(o:T):T&{default:T}{
@@ -166,10 +115,13 @@ export async function boot(options:BootOptions={
     pNode.FS=FS;
     pNode.core=core;
     builtInAliases={
-        "petit-node": pNode,
-        "@hoge1e3/fs": FS,
-        "@hoge1e3/fs2": FS,
-        "@hoge1e3/sfile": sfile,
+        //--
+        //"petit-node": pNode,
+        //--
+        "pnode:main": pNode,
+        "pnode:core": core,
+        "pnode:FS": FS,
+        "pnode:sfile": sfile,
         fs: genfs(core.fs),
         os: core.os,
         path: core.path,
@@ -177,9 +129,9 @@ export async function boot(options:BootOptions={
         buffer: core.Buffer,
         assert,
         util,
-        chai,
-        "jszip": JSZip,
-        espree,
+        "pnode:chai": chai,
+        "pnode:jszip": JSZip,
+        "pnode:espree": espree,
     };
     dupNodePrefix(["fs","os","path","process","assert","util"]);
     /*
