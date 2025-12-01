@@ -2,7 +2,7 @@ import { SFile } from "@hoge1e3/sfile";
 import * as FS from "@hoge1e3/fs2";
 import { FileBasedModuleType, ImportOrRequire } from "./types";
 import * as rex from "resolve.exports";
-import { ex } from "./errors";
+import { ex } from "./errors.js";
 const node_modules="node_modules/";
 const package_json="package.json";
 type PackageJson={
