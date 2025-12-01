@@ -2,6 +2,7 @@ import { SFile } from "@hoge1e3/sfile";
 import * as FS from "@hoge1e3/fs2";
 import { FileBasedModuleType, ImportOrRequire } from "./types";
 import * as rex from "resolve.exports";
+import { ex } from "./errors";
 const node_modules="node_modules/";
 const package_json="package.json";
 type PackageJson={
@@ -90,7 +91,8 @@ export class NodeModule {
                 }
             }
         }
-        throw new Error(`${name} not found from ${base}`);
+        throw ex({type:"notfound", name, base},
+            `Module '${name}' not found from '${base}'`);
     }
 
     resolveImportRaw(path="."):rex.Exports.Output[0]|undefined{
@@ -127,8 +129,6 @@ export class NodeModule {
         const c=this.resolveRequireRaw(subpath)||this.resolveLegacy()||subpath;
         const f=pathFallback(this.dir.rel(c));
         return f;
-        /*if (NodeModule.moduleTypeOfFile(f)==="CJS") return {file:f, type:"CJS"};
-        throw new Error(`${this.dir}: Cannot find subpath ${subpath}.`);*/
     }
 }
 export function pathFallback(p:SFile):SFile {
@@ -142,7 +142,8 @@ export function pathFallback(p:SFile):SFile {
         if (f&&f.exists()&&!f.isDir()) return f; 
     } catch(_e){}
   }
-  throw new Error(p+" is not existent");
+  throw ex({type:"notfound", path:p.path()},
+    `Cannot fallback: '${p}' is not existent.`);
 }
 
 

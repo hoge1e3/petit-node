@@ -121,8 +121,13 @@ export class ESModuleCompiler {
                     addURL(cc);
                 }
                 return cc;
-            }catch(err) {
-                console.warn(e.file+" fallbacked CJS to ESM. Cause: "+err);
+            }catch(_e) {
+                const err:any=_e;
+                if (err.type==="syntax") {
+                    console.warn(e.file+" fallbacked CJS to ESM. Cause: "+err);
+                } else {
+                    throw err;
+                }
             }
         }
         return await this.compile(e);

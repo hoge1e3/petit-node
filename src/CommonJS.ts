@@ -3,7 +3,7 @@ import { IModuleCache, Module, ModuleValue } from "./types";
 import * as FS from "@hoge1e3/fs2";
 import { getAliases } from "./alias.js";
 import { CompiledCJS, ModuleEntry } from "./Module.js";
-
+import {ex} from "./errors.js";
 type RequireFunc=((path:string)=>ModuleValue)&{deps:Map<string,Module>};
 //type Module={exports:ModuleValue};
 function wrapException(e:Error, pos:string) {
@@ -68,7 +68,11 @@ export class CJSCompiler {
         const funcSrc=entry.sourceCode+"\n"+sourceURL;
         const func=new Function("require", "exports","module","__filename", "__dirname", funcSrc);
         const args=this.requireArguments(file);
-        func(...args);
+        try {
+            func(...args);
+        }catch(e) {
+            throw ex("syntax", e as Error); 
+        }
         const module=args[2];
         const compiled=new CompiledCJS( entry, args[0].deps, module.exports, funcSrc);
         this.cache.add(compiled);
