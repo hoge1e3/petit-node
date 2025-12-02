@@ -3,7 +3,7 @@ import { IModuleCache, Module, ModuleValue } from "./types";
 import * as FS from "@hoge1e3/fs2";
 import { getAliases } from "./alias.js";
 import { CompiledCJS, ModuleEntry } from "./Module.js";
-
+import {ex} from "./errors.js";
 type RequireFunc=((path:string)=>ModuleValue)&{deps:Map<string,Module>};
 //type Module={exports:ModuleValue};
 function wrapException(e:Error, pos:string) {
@@ -36,7 +36,7 @@ export class CJSCompiler {
                 deps.set(path, module);
                 return module.value;
             }
-            const e=ModuleEntry.resolve("CJS", path,base);
+            const e=ModuleEntry.resolve("require", path,base);
             const c=this.compile(e);
             deps.set(path, c);
             return c.value;
@@ -65,10 +65,17 @@ export class CJSCompiler {
             return c;
         }
         const sourceURL=`//# sourceURL=file://${file.path()}`;
-        const funcSrc=entry.sourceCode+"\n"+sourceURL;
+        const funcSrc=(
+            entry.file.endsWith(".json") ? 
+            `module.exports=${entry.sourceCode};`:
+            entry.sourceCode)+"\n"+sourceURL;
         const func=new Function("require", "exports","module","__filename", "__dirname", funcSrc);
         const args=this.requireArguments(file);
-        func(...args);
+        try {
+            func(...args);
+        }catch(e) {
+            throw ex("syntax", e as Error); 
+        }
         const module=args[2];
         const compiled=new CompiledCJS( entry, args[0].deps, module.exports, funcSrc);
         this.cache.add(compiled);
@@ -101,5 +108,6 @@ export function require(porf:string|SFile, base?:SFile|string):ModuleValue {
     } else {
         fbase=base;
     }
-    return new CJSCompiler().compile(ModuleEntry.resolve("CJS", path,fbase)).value;
+    const entry = ModuleEntry.resolve("require", path, fbase);
+    return new CJSCompiler().compile(entry).value;
 }

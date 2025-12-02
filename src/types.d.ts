@@ -41,6 +41,7 @@ export type FSDEPS={
     Buffer:typeof import("node:buffer").Buffer,
     //JSZip:typeof import("jszip"),
 }
+export type ImportOrRequire="import"|"require";
 export type FileBasedModuleType="ES"|"CJS";
 export type ModuleType=FileBasedModuleType|"Builtin"|"External";
 export interface Module{
@@ -52,9 +53,9 @@ export interface Module{
     shouldReload(): boolean;
     dispose(): void;
 }
-export type RawModuleEntry={
+/*export type RawModuleEntry={
     file: SFile, type: FileBasedModuleType,
-};
+};*/
 export type ModuleValue=unknown;
 export type GlobalValue={
     aliases: IModuleCache,
