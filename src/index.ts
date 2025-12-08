@@ -23,7 +23,10 @@ import { CompiledCJS, CompiledESModule, ModuleEntry } from "./Module.js";
 export { CompiledESModule, ModuleEntry } from "./Module.js";
 import { jsToBlobURL } from "./scriptTag.js";
 import { JSZip, PathUtil, zip } from "@hoge1e3/fs2";
-
+import * as querystring from "querystring";
+import {createModulePolyfill} from "./polyfills/module.js";
+import * as vm from "./polyfills/vm.js";
+import * as constants from "./polyfills/constants.js";
 type Core={
     FS:TFS,
     os:any,
@@ -131,6 +134,8 @@ export async function boot(options:BootOptions={
         assert,
         util,
         url,
+        querystring,vm,constants,
+        module: createModulePolyfill(FS),
         "pnode:chai": chai,
         "pnode:jszip": JSZip,
         "pnode:espree": espree,

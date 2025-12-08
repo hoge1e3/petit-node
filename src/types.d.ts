@@ -6,10 +6,11 @@
 declare type Content={
     toURL():string;
 }*/
-import {FSClass, SFile} from "@hoge1e3/fs2";
+import {SFile} from "@hoge1e3/fs2";
 import { DependencyContainer, Policy } from "@hoge1e3/sfile";
 import { MIMETypes } from "@hoge1e3/sfile/src/MIMETypes";
 import RootFS from "petit-fs/src/fs/RootFS";
+import { IFileSystem } from "petit-fs/src/fs/types";
 export type TFS={
     get(path:string):SFile;
     setDefaultPolicy(policy?:Policy):void;
@@ -23,8 +24,8 @@ export type TFS={
     expandPath: typeof import("@hoge1e3/fs2").expandPath;
     resolve: typeof import("@hoge1e3/fs2").resolve;
     //--- not for nw.js, only petit-fs ---
-    mount?(mountPoint:string, fs:string|FSClass):FSClass;
-    mountAsync?(mountPoint:string, fs:string):Promise<FSClass>;    
+    mount?(mountPoint:string, fs:string|IFileSystem):IFileSystem;
+    mountAsync?(mountPoint:string, fs:string):Promise<IFileSystem>;    
     unmount?(mountPoint:string):void;
     getRootFS?():RootFS;
     //--- see SFile.ts 
