@@ -65,7 +65,10 @@ export class CJSCompiler {
             return c;
         }
         const sourceURL=`//# sourceURL=file://${file.path()}`;
-        const funcSrc=entry.sourceCode+"\n"+sourceURL;
+        const funcSrc=(
+            entry.file.endsWith(".json") ? 
+            `module.exports=${entry.sourceCode};`:
+            entry.sourceCode)+"\n"+sourceURL;
         const func=new Function("require", "exports","module","__filename", "__dirname", funcSrc);
         const args=this.requireArguments(file);
         try {
@@ -105,5 +108,6 @@ export function require(porf:string|SFile, base?:SFile|string):ModuleValue {
     } else {
         fbase=base;
     }
-    return new CJSCompiler().compile(ModuleEntry.resolve("require", path,fbase)).value;
+    const entry = ModuleEntry.resolve("require", path, fbase);
+    return new CJSCompiler().compile(entry).value;
 }
