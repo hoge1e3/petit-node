@@ -1,17 +1,16 @@
+const webpack = require('webpack');
+const config = require('./webpack.config.cjs');
 
-let WebpackCLI = require("webpack-cli");
-const runCLI = async (args) => {
-    // Create a new instance of the CLI object
-    const cli = new WebpackCLI();
-    try {
-        await cli.run(args);
+exports.main=function main(){
+  const compiler = webpack(config);
+  
+  compiler.run((err, stats) => {
+    if (err) {
+      console.error('Webpack error:', err);
+      process.exit(1);
     }
-    catch (error) {
-        cli.logger.error(error);
-        process.exit(2);
-    }
-};
-exports.main = function main(){
-  process.chdir(this.resolve(".").path());
-  return runCLI();
+  
+    console.log(stats.toString({ colors: true }));
+    compiler.close(() => {});
+  });
 };
