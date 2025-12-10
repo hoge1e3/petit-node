@@ -4,7 +4,11 @@ import * as FS from "@hoge1e3/fs2";
 import { getAliases } from "./alias.js";
 import { CompiledCJS, ModuleEntry } from "./Module.js";
 import {ex} from "./errors.js";
-type RequireFunc=((path:string)=>ModuleValue)&{deps:Map<string,Module>};
+type RequireFunc=((path:string)=>ModuleValue)&{
+    deps:Map<string,Module>,
+    freezeDeps():void,
+    resolve(path:string):string,
+};
 //type Module={exports:ModuleValue};
 function wrapException(e:Error, pos:string) {
     const res=new Error("At "+pos+"\n"+e.message);
@@ -29,18 +33,30 @@ export class CJSCompiler {
     }
     requireFunc(base:SFile):RequireFunc {
         const deps=new Map<string, Module>();
+        let depsFrozen=false;
         return Object.assign((path:string)=>{
             const module=this.cache.getByPath(path);// [A]
             if (module) {
                 if (!module.value) throw new Error(`Cannot import ${path}(seems to be ESM) from ${base}(CJS)`);
-                deps.set(path, module);
+                if (!depsFrozen) deps.set(path, module);
                 return module.value;
             }
             const e=ModuleEntry.resolve("require", path,base);
             const c=this.compile(e);
-            deps.set(path, c);
+            //console.log("deps set",path,depsFrozen);
+            if (!depsFrozen) deps.set(path, c);
             return c.value;
-        }, {deps});
+        }, {
+            deps,
+            freezeDeps(){
+                //console.log("Deps frozen ",base.path());
+                depsFrozen=true;
+            },
+            resolve(path:string):string{
+                const e=ModuleEntry.resolve("require", path,base);
+                return e.file.path();
+            }
+        });
     }
     requireArguments(file:SFile) {
         const base=file.up()!;
@@ -76,6 +92,7 @@ export class CJSCompiler {
         }catch(e) {
             throw ex("syntax", e as Error); 
         }
+        args[0].freezeDeps();
         const module=args[2];
         const compiled=new CompiledCJS( entry, args[0].deps, module.exports, funcSrc);
         this.cache.add(compiled);

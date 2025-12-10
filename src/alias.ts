@@ -1,5 +1,5 @@
 import { uniqueName, valueToESCode } from "./ESModuleGenerator.js";
-import { BuiltinModule, ModuleCache } from "./Module.js";
+import { BuiltinModule, CompiledCJS, ModuleCache } from "./Module.js";
 import { jsToBlobURL } from "./scriptTag.js";
 import { Aliases, AliasHash, Module, ModuleValue } from "./types";
 import { GlobalValue, GlobalInfo } from "./types";
@@ -16,18 +16,19 @@ export function addAliases(p:AliasHash){
         addAlias(k, p[k]);
     }
 }
-export function addURL(module:Module, properties?:string[]) {
+export function addURL(module:CompiledCJS/*, properties?:string[]*/) {
     const ginf=getGlobalInfo();
     const value=module.value;
     if (value==null) throw new Error("Value is not set: "+module.path);
     if (module.url!=null) throw new Error("URL is already set: "+module.path);
-    const keys=properties||Object.keys(value as any);
-    const ginfName=uniqueName(keys);
-    const valueName=uniqueName([...keys,ginfName]);
+    
+    //const keys=properties||Object.keys(value as any);
+    const ginfName=uniqueName([]/*keys*/);
+    const valueName=uniqueName([/*...keys,*/ginfName]);
     const jsCodeString=`
 import ${ginfName} from "${ginf.url}";
 let ${valueName}=${ginfName}.aliases.getByPath("${module.path}").value;
-${valueToESCode(valueName, value, keys)}
+export default ${valueName};
 //# sourceURL=pnode-alias/${module.path}
 `;
     let blobUrl = jsToBlobURL(jsCodeString);

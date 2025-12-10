@@ -27,6 +27,7 @@ import * as querystring from "querystring";
 import {createModulePolyfill} from "./polyfills/module.js";
 import * as vm from "./polyfills/vm.js";
 import * as constants from "./polyfills/constants.js";
+import * as stream from "./polyfills/stream.js";
 type Core={
     FS:TFS,
     os:any,
@@ -39,7 +40,7 @@ export let core:Core|null=null;//=setupCore();
 declare let globalThis:any;
 //declare let global:any;
 type SFile=sfile.SFile;
-const VERSION_SRC="__VER__1.6.1__SION__";
+const VERSION_SRC="__VER__1.6.2__SION__";
 export let version=VERSION_SRC.replace(/\_\_VER\_\_/,"").replace(/\_\_SION\_\_/,"");
 function setupCore(){
     let res={
@@ -47,6 +48,7 @@ function setupCore(){
         ..._FS.nodePolyfill,
     };
     res.process.release.name="petit-node";
+    res.process.version=version;
     return res;
 }
 function mod2obj<T extends object>(o:T):T&{default:T}{
@@ -134,7 +136,8 @@ export async function boot(options:BootOptions={
         assert,
         util,
         url,
-        querystring,vm,constants,
+        // polyfills
+        querystring,vm,constants,stream,
         module: createModulePolyfill(FS),
         "pnode:chai": chai,
         "pnode:jszip": JSZip,

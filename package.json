@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "petit-node",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "description": "Subset of node.js running in browser",
   "main": "js/index.js",
   "scripts": {
@@ -31,8 +31,8 @@
   "dependencies": {
     "@hoge1e3/assert": "^2.1.4",
     "@hoge1e3/events": "^1.0.0",
-    "@hoge1e3/fs2": "^1.6.0",
-    "@hoge1e3/sfile": "^1.5.2",
+    "@hoge1e3/fs2": "^1.6.2",
+    "@hoge1e3/sfile": "^1.6.2",
     "@hoge1e3/util": "^0.12.6",
     "@types/chai": "^5.0.1",
     "@types/file-saver": "^2.0.7",
