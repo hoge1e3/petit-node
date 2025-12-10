@@ -110,20 +110,24 @@ export async function main(){
     }
 
     resolveImportRaw(path="."):rex.Exports.Output[0]|undefined{
-        try {
+        //try {
             const pkg=this.packageJson();
+            // returns undefined if pkg.exports is not present
+            // throws error if pkg.exports is present but pkg.exports[path] is not present
             const r=rex.exports(pkg, path);
             if (r) return r[0];
-        } catch(e){
-        }
+        /*} catch(e){
+        }*/
     }
     resolveRequireRaw(path="."):rex.Exports.Output[0]|undefined{
-        try {
+        //try {
             const pkg=this.packageJson();
+            // returns undefined if pkg.exports is not present
+            // throws error if pkg.exports is present but pkg.exports[path] is not present
             const r=rex.exports(pkg, path, {require:true});
             if (r) return r[0];
-        } catch(e){
-        }
+        /*} catch(e){
+        }*/
     }
     resolveLegacy(){
         try {
@@ -132,17 +136,27 @@ export async function main(){
         } catch(e){
         }
     }
+    /*
+    if (exports あり) {
+        if (exports に一致) -> そのエントリへ
+        else -> resolution error
+    } else { // exports なし
+        if (サブパスあり) -> ファイルパスとして解決
+        else if (main あり) -> main へ
+        else -> index.js 等へ
+    }   */
     resolveImport(subpath="."):SFile {
-        const e=this.resolveImportRaw(subpath)||this.resolveLegacy()||subpath;
+        const e=this.resolveImportRaw(subpath)||this.resolveSubpath(subpath)||this.resolveLegacy()||subpath;
         const f=pathFallback(this.dir.rel(e));
         return f;
-        /*if (NodeModule.moduleTypeOfFile(f)==="ES") return {file: f, type:"ES"};
-        return this.resolveRequire(subpath);*/
     }
     resolveRequire(subpath="."):SFile {
-        const c=this.resolveRequireRaw(subpath)||this.resolveLegacy()||subpath;
+        const c=this.resolveRequireRaw(subpath)||this.resolveSubpath(subpath)||this.resolveLegacy()||subpath;
         const f=pathFallback(this.dir.rel(c));
         return f;
+    }
+    resolveSubpath(subpath:string):string|null {
+        return (subpath==="."||subpath=="./")?null:subpath;
     }
 }
 export function pathFallback(p:SFile):SFile {
