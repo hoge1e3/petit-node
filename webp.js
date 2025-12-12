@@ -1,2 +1,3 @@
 #!run
-export {main} from "./webp.cjs";
+import webp from "./webp.cjs";
+export const main=webp.main;
