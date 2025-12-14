@@ -143,7 +143,8 @@ export async function boot(options:BootOptions={
         "pnode:jszip": JSZip,
         "pnode:espree": espree,
     };
-    dupNodePrefix(["fs","os","path","process","assert","util"]);
+    dupNodePrefix(["fs","os","path","process","buffer","assert","util","url",
+        "querystring","vm","constants","stream","module"]);
     /*
     It seems not to be used... Especially in nw.js (globalThis.process===global.process)
     const extendEnv=(p:any)=>{
