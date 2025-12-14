@@ -14,7 +14,7 @@ import * as espree from 'espree';
 import * as chai from "chai";
 import assert from "@hoge1e3/assert";// Replace with assert polyfill, chai.assert is slow.
 import * as util from "@hoge1e3/util";
-import * as url from "url";
+import * as url from "@hoge1e3/url";
 import * as sfile from "@hoge1e3/sfile";
 import { Aliases, AliasHash, FileBasedModuleType, ImportOrRequire, Module, ModuleValue, TFS } from "./types";
 export {require, CJSCompiler} from "./CommonJS.js";
