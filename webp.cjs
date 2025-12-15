@@ -4,7 +4,8 @@ globalThis.global=globalThis;
 //process.version="1.2.3";//atodekesu
 exports.main=function main(){
   //globalThis.__conf=config;
-  //console.log("conf",config);
+  process.chdir(this.resolve(".").path());
+  console.log("conf",config);
   if (typeof config==="function") config=config(process.env,[]);
   const compiler = webpack(config);
   
