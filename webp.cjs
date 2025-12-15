@@ -1,7 +1,11 @@
 const webpack = require('webpack');
-const config = require('./webpack.config.cjs');
-
+let config = require('./webpack.config.cjs');
+globalThis.global=globalThis;
+//process.version="1.2.3";//atodekesu
 exports.main=function main(){
+  //globalThis.__conf=config;
+  //console.log("conf",config);
+  if (typeof config==="function") config=config(process.env,[]);
   const compiler = webpack(config);
   
   compiler.run((err, stats) => {
