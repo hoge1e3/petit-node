@@ -42,7 +42,7 @@
     "espree": "^10.0.1",
     "mutable-promise": "^1.1.15",
     "resolve.exports": "^2.0.3",
-    "url": "^0.11.4",
+    "@hoge1e3/url": "^1.6.3",
     "util": "^0.12.5"
   },
   "devDependencies": {
