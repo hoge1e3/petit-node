@@ -51,7 +51,8 @@ export interface Module{
     value?: ModuleValue,
     url?: string,
     dependencies: Module[],
-    shouldReload(): boolean;
+    shouldReload():boolean;
+    shouldReloadLoop(path: Set<Module>): boolean;
     dispose(): void;
 }
 /*export type RawModuleEntry={

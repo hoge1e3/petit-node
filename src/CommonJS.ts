@@ -87,15 +87,17 @@ export class CJSCompiler {
             entry.sourceCode)+"\n"+sourceURL;
         const func=new Function("require", "exports","module","__filename", "__dirname", funcSrc);
         const args=this.requireArguments(file);
+        const module=args[2];
+        const deps=args[0].deps;
+        const compiled=new CompiledCJS( entry, deps, module.exports, funcSrc);
+        this.cache.add(compiled);
         try {
             func(...args);
         }catch(e) {
             throw ex("syntax", e as Error); 
         }
         args[0].freezeDeps();
-        const module=args[2];
-        const compiled=new CompiledCJS( entry, args[0].deps, module.exports, funcSrc);
-        this.cache.add(compiled);
+        compiled.value=(module.exports);
         return compiled;
 
       } catch(e){

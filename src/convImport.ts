@@ -72,6 +72,7 @@ export async function convert(entry: ModuleEntry,urlConverter:URLConverter): Pro
       urlConverter.deps, url, gensrc);
   } catch (err) {
     const original=err as any;
+    console.error(err);
     const e=new Error("At "+file.path()+
     (original.lineNumber? ":"+original.lineNumber+":"+original.column :"")+"\n"+
     original.message) as any;

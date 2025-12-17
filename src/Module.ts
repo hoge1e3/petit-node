@@ -52,9 +52,12 @@ export class CompiledESModule implements FileBasedModule {
     ){
         this.path=entry.file.path();
     }
-    shouldReload():boolean {
+    shouldReload(): boolean {return this.shouldReloadLoop(new Set<Module>());}
+    shouldReloadLoop(path: Set<Module>):boolean {
+        if (path.has(this)) return false;
+        path.add(this);
         if (this.entry._shouldReload()) return true;
-        return this.dependencies.some((dep)=>dep.shouldReload());
+        return this.dependencies.some((dep)=>dep.shouldReloadLoop(path));
     }
     dispose(){
         URL.revokeObjectURL(this.url);
@@ -67,7 +70,7 @@ export class CompiledCJS implements FileBasedModule{
     constructor(
         public readonly entry: ModuleEntry,
         public readonly dependencyMap: Map<string, Module>,
-        public readonly value: ModuleValue,
+        public value: ModuleValue,
         public readonly generatedCode: string,
     ){
         this.path=entry.file.path();
@@ -75,9 +78,12 @@ export class CompiledCJS implements FileBasedModule{
     get dependencies():Module[]{
         return [...this.dependencyMap.values()];
     }
-    shouldReload():boolean {
+    shouldReload(): boolean {return this.shouldReloadLoop(new Set<Module>());}
+    shouldReloadLoop(path:Set<Module>):boolean {
+        if (path.has(this)) return false;
+        path.add(this);
         if (this.entry._shouldReload()) return true;
-        return this.dependencies.some((dep)=>dep.shouldReload());
+        return this.dependencies.some((dep)=>dep.shouldReloadLoop(path));
     }
     dispose(){
         if (this.url) URL.revokeObjectURL(this.url);
@@ -89,7 +95,8 @@ export class BuiltinModule implements Module {
     constructor(public path:string, public value:ModuleValue, public url:string) {
         this.dependencies=[];
     }
-    shouldReload(): boolean {return false;}
+    shouldReload(): boolean {return this.shouldReloadLoop(new Set<Module>());}
+    shouldReloadLoop(path: Set<Module>): boolean {return false;}
     dispose(): void {}
 }
 export class ModuleCache implements IModuleCache {
