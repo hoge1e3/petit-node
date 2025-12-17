@@ -5,7 +5,6 @@ globalThis.global=globalThis;
 exports.main=function main(){
   //globalThis.__conf=config;
   process.chdir(this.resolve(".").path());
-  console.log("cwd", process.cwd());
   if (typeof config==="function") config=config(process.env,[]);
   console.log("conf",config);
   const compiler = webpack(config);
