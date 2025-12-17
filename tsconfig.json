@@ -14,7 +14,8 @@
       "strict": true,
       "outDir":"./js",
       "allowSyntheticDefaultImports":true,
-      
+      "declaration": true,
+
       "incremental": true,
       "tsBuildInfoFile": "./.tsbuildinfo",
     },

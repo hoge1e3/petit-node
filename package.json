@@ -4,6 +4,7 @@
   "version": "1.6.3",
   "description": "Subset of node.js running in browser",
   "main": "js/index.js",
+  "types": "js/index.d.js",
   "scripts": {
     "tsc": "npx tsc",
     "webpack-dev": "npx webpack --mode=development",
