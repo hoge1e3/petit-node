@@ -16,7 +16,7 @@ import assert from "@hoge1e3/assert";// Replace with assert polyfill, chai.asser
 import * as util from "@hoge1e3/util";
 import * as url from "@hoge1e3/url";
 import * as sfile from "@hoge1e3/sfile";
-import { Aliases, AliasHash, FileBasedModuleType, ImportOrRequire, Module, ModuleValue, TFS } from "./types";
+import { Aliases, AliasHash, DeviceManager, FileBasedModuleType, ImportOrRequire, Module, ModuleValue, TFS } from "../types/";
 export {require, CJSCompiler} from "./CommonJS.js";
 import {require, CJSCompiler} from "./CommonJS.js";
 import { CompiledCJS, CompiledESModule, ModuleEntry } from "./Module.js";
@@ -80,7 +80,7 @@ let pNode:(typeof import("./index.js"))&{import:typeof importModule}={
     ESModuleCompiler, CJSCompiler,
     convertStack, loadedModules, urlToFile, events, on, urlToPath, 
     thisUrl, FS:null as (null|TFS), require,core:null as (null|Core),version,
-    file, getFS, getNodeLikeFs, getCore,
+    file, getFS, getNodeLikeFs, getCore, getDeviceManager,
     addPrecompiledCJSModule,
     addPrecompiledESModule,
     default:{} as any,
@@ -95,6 +95,10 @@ export function getFS(): TFS {
 export function getNodeLikeFs(): typeof import("node:fs") {
     return getCore()?.fs;
 }
+export function getDeviceManager():DeviceManager {
+    return getCore()?.fs;
+}
+
 export function getCore(){ return core; }
 export default pNode;
 pNode.default=pNode;

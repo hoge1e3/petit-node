@@ -6,7 +6,7 @@ import { simple, SimpleVisitors } from "acorn-walk";
 //import { Content } from "@hoge1e3/fs2";
 import { CompiledESModule} from "./Module.js";
 import { ModuleEntry } from "./Module.js";
-import { Module } from "./types";
+import { Module } from "../types/index.js";
 
 
 type URLConverter = {

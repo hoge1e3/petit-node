@@ -2,7 +2,7 @@
 import {addURL, getAliases } from "./alias.js";
 import { convert } from "./convImport.js";
 //type SFile=FS.SFile;
-import { Aliases, Module } from "./types";
+import { Aliases, Module } from "../types/index.js";
 import { CompiledESModule, ModuleEntry } from "./Module.js";
 import { CJSCompiler } from "./CommonJS.js";
 

@@ -1,4 +1,4 @@
-import { ModuleValue } from "./types";
+import { ModuleValue } from "../types";
 
 export const reservedWords={
     "break": 1, "case": 1, "catch": 1, "class": 1, "const": 1, "continue": 1, 

@@ -1,5 +1,5 @@
 import { CJSCompiler } from "../CommonJS.js";
-import { TFS } from "../types.js";
+import { TFS } from "../../types/index.js";
 
 export function createModulePolyfill(FS:TFS) {
     const cjs=CJSCompiler.create();

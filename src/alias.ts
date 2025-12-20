@@ -1,8 +1,8 @@
 import { uniqueName, valueToESCode } from "./ESModuleGenerator.js";
 import { BuiltinModule, CompiledCJS, ModuleCache } from "./Module.js";
 import { jsToBlobURL } from "./scriptTag.js";
-import { Aliases, AliasHash, Module, ModuleValue } from "./types";
-import { GlobalValue, GlobalInfo } from "./types";
+import { Aliases, AliasHash, Module, ModuleValue } from "../types/index.js";
+import { GlobalValue, GlobalInfo } from "../types/index.js";
 
 let gbl_info:GlobalInfo;
 export function getAliases(){

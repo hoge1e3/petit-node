@@ -1,7 +1,7 @@
 import { SFile } from "@hoge1e3/sfile";
 import { NodeModule, pathFallback } from "./NodeModule.js";
 import * as FS from "@hoge1e3/fs2";
-import { FileBasedModuleType, IModuleCache, ImportOrRequire, Module, ModuleValue } from "./types";
+import { FileBasedModuleType, IModuleCache, ImportOrRequire, Module, ModuleValue } from "../types/";
 
 export class ModuleEntry {
     constructor(

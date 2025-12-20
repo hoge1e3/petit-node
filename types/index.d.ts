@@ -10,7 +10,7 @@ import {SFile} from "@hoge1e3/fs2";
 import { DependencyContainer, Policy } from "@hoge1e3/sfile";
 import { MIMETypes } from "@hoge1e3/sfile/src/MIMETypes";
 import RootFS from "petit-fs/src/fs/RootFS";
-import { IFileSystem } from "petit-fs/src/fs/types";
+import { FSTypeName, IFileSystem } from "petit-fs/src/fs/types";
 export type TFS={
     get(path:string):SFile;
     setDefaultPolicy(policy?:Policy):void;
@@ -75,3 +75,10 @@ export interface IModuleCache extends Iterable<Module> {
     getByURL(url:string, skipCheckReload?:boolean):Module|undefined;
 }
 export type AliasHash={[key:string]:ModuleValue};
+export interface DeviceManager {
+    //mountSync(mountPoint: string, resolver: IFileSystem|FSTypeName, options:any={}): IFileSystem;
+    mount(mountPoint: string, resolver: FSTypeName, options:any): Promise<IFileSystem>;
+    unmount(mountPoint:string):void;
+    fstab():IFileSystem[];
+    commitPromise():Promise<void>;
+}
