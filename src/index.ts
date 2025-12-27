@@ -32,6 +32,7 @@ type Core={
     FS:TFS,
     os:any,
     fs:any,
+    dev:any,
     path:any,
     process:any,
     Buffer:BufferConstructor,
@@ -96,7 +97,7 @@ export function getNodeLikeFs(): typeof import("node:fs") {
     return getCore()?.fs;
 }
 export function getDeviceManager():DeviceManager {
-    return getCore()?.fs;
+    return getCore()?.dev;
 }
 
 export function getCore(){ return core; }
