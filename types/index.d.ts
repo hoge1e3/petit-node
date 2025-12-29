@@ -75,10 +75,10 @@ export interface IModuleCache extends Iterable<Module> {
     getByURL(url:string, skipCheckReload?:boolean):Module|undefined;
 }
 export type AliasHash={[key:string]:ModuleValue};
-export interface DeviceManager {
+/*export interface DeviceManager {
     //mountSync(mountPoint: string, resolver: IFileSystem|FSTypeName, options:any={}): IFileSystem;
     mount(mountPoint: string, resolver: FSTypeName, options:any): Promise<IFileSystem>;
     unmount(mountPoint:string):void;
     fstab():IFileSystem[];
     commitPromise():Promise<void>;
-}
+}*/

@@ -16,7 +16,7 @@ import assert from "@hoge1e3/assert";// Replace with assert polyfill, chai.asser
 import * as util from "@hoge1e3/util";
 import * as url from "@hoge1e3/url";
 import * as sfile from "@hoge1e3/sfile";
-import { Aliases, AliasHash, DeviceManager, FileBasedModuleType, ImportOrRequire, Module, ModuleValue, TFS } from "../types/";
+import { Aliases, AliasHash, FileBasedModuleType, ImportOrRequire, Module, ModuleValue, TFS } from "../types/";
 export {require, CJSCompiler} from "./CommonJS.js";
 import {require, CJSCompiler} from "./CommonJS.js";
 import { CompiledCJS, CompiledESModule, ModuleEntry } from "./Module.js";
@@ -28,6 +28,7 @@ import {createModulePolyfill} from "./polyfills/module.js";
 import * as vm from "./polyfills/vm.js";
 import * as constants from "./polyfills/constants.js";
 import * as stream from "./polyfills/stream.js";
+import { DeviceManager } from "petit-fs/src/vfsUtil.js";
 type Core={
     FS:TFS,
     os:any,
