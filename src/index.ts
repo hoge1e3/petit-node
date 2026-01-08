@@ -29,6 +29,7 @@ import * as vm from "./polyfills/vm.js";
 import * as constants from "./polyfills/constants.js";
 import * as stream from "./polyfills/stream.js";
 import { DeviceManager } from "petit-fs/src/vfsUtil.js";
+import { Fstab } from "petit-fs/src/types.js";
 type Core={
     FS:TFS,
     os:any,
@@ -116,12 +117,23 @@ type BootOptions={
     aliases: AliasHash|undefined,
     init: Initializer|undefined,
     core: Core|undefined,
+    main: string|SFile|undefined,
+    fstab: Fstab[]|undefined,
 };
+
+function hackTimeouts(){
+    const g=globalThis as any;
+    for(let k of ["setTimeout","setInterval",
+    "clearTimeout","clearInterval",]){
+        g[k]=g[k].bind(g);
+    }
+}
 export async function boot(options:BootOptions={
     aliases:undefined, init: undefined, core: undefined,
+    main: undefined, fstab: undefined,
 }) {
     await initModuleGlobal();
-    const {aliases, init}=options;
+    const {aliases, init, fstab, main}=options;
     core=options.core||setupCore();
     FS=mod2obj(core.FS);
     pNode.FS=FS;
@@ -133,6 +145,7 @@ export async function boot(options:BootOptions={
         "pnode:main": pNode,
         "pnode:core": core,
         "pnode:FS": FS,
+        "pnode:dev": core.dev,
         "pnode:sfile": sfile,
         fs: genfs(core.fs),
         os: core.os,
@@ -159,19 +172,26 @@ export async function boot(options:BootOptions={
         return r;
     };*/
     globalThis.process=globalThis.process||(core.process);
+    globalThis.global=globalThis;
     globalThis.Buffer=globalThis.Buffer||core.Buffer;
-
+    hackTimeouts();
     for (let k in builtInAliases) {
         addAlias(k, builtInAliases[k] as ModuleValue);
     }
     if (aliases) {
         addAliases(aliases);
     }
+    if (fstab) {
+        await getDeviceManager().loadFstab(fstab);
+    }
     if (init) {
         let path=await init({FS, pNode});
         if (!path) return;
         let file=(typeof path=="string"? FS.get(path): path as SFile);
         return await importModule(file);            
+    } else if (main) {
+        let file=(typeof main=="string"? FS.get(main): main as SFile);
+        return await importModule(file);       
     }
 }
 export const init=boot;
