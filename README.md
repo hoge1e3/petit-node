@@ -3,10 +3,10 @@
 **A tiny Node.js–compatible runtime that runs directly in the browser.**
 
 petit-node executes a subset of Node.js without starting a server or spawning processes.
-Instead of emulating a full server environment, it evaluates Node-style JavaScript code directly in the browser, providing a REPL-like experience with a persistent virtual file system.
+Instead of emulating a full server environment, it **evaluates Node-style JavaScript code** directly in the browser, providing a REPL-like experience with a **persistent virtual file system**.
 
 Modules can be written, saved, and imported as ES modules or CommonJS modules. 
-These modules can be rewrite and reloadable without refreshing browser entire pages. 
+These modules are **rewritable and reloadable** without refreshing browser entire pages. 
 npm packages can also be used when stored in the virtual file system.
 
 This project is designed for **mobile-first programming**, where traditional Node.js workflows (terminals, ports, server restarts) are not needed at all. 
@@ -25,6 +25,9 @@ a programming environment optimized for smartphones and tablets.
 ```js
 import pNode from "https://esm.sh/petit-node@latest/dist/index.js";
 await pNode.boot();
+// mount file system, RAM-disk on /tmp/
+dev.mount("/tmp/","ram");
+console.log(dev.df());
 const fs=await pNode.importModule("node:fs");
 // create package.json
 fs.writeFileSync("/tmp/package.json",JSON.stringify({
@@ -48,7 +51,7 @@ fs.writeFileSync("/tmp/sub.js",`
  export function greet(name) {
     return "Nice to meet you, "+name+"!";
  }`);
-// re-import /tmp/(index.js)
+// re-import /tmp/(index.js), message changes.
 await pNode.importModule("/tmp/");
 ```
 [Run in codepen](https://codepen.io/hoge1e3/pen/dPbyxbp)
