@@ -1,24 +1,26 @@
 # petit-node
 
-**A tiny Node.js–compatible runtime that runs directly in the browser.**
+**A tiny npm package loader that runs directly in the browser.**
 
 petit-node executes a subset of Node.js without starting a server or spawning processes.
-Instead of emulating a full server environment, it **evaluates Node-style JavaScript code** directly in the browser, providing a REPL-like experience with a **persistent virtual file system**.
+Instead of emulating a full server environment, it **evaluates Node(or npm)-style JavaScript code** directly in the browser, providing a REPL-like experience with a **persistent virtual file system**.
+Only a static web page is required to run petit-node. 
 
-Modules can be written, saved, and imported as ES modules or CommonJS modules. 
+Modules can be written, saved, and imported/required as ES/CommonJS modules. Path can be specified by both file path(absolute or relative) and npm package path (from node_modules/**).
+
 These modules are **rewritable and reloadable** without refreshing browser entire pages. 
 npm packages can also be used when stored in the virtual file system.
 
 This project is designed for **mobile-first programming**, where traditional Node.js workflows (terminals, ports, server restarts) are not needed at all. 
-Only a static web page is required to run petit-node. 
-
-The virtual file system is provided by
-[@hoge1e3/fs](https://www.npmjs.com/package/@hoge1e3/fs),
-and petit-node can also run inside Web Workers.
 
 petit-node was originally developed as the core runtime of
 [acepad](https://hoge1e3.github.io/acepad/),
 a programming environment optimized for smartphones and tablets.
+
+The virtual file system is provided by
+[petit-fs](https://www.npmjs.com/package/@hoge1e3/petit-fs). It provides filesystem using
+localStorage and indexedDB.
+
 
 ## Example
 
@@ -96,4 +98,4 @@ console.log(dev.df());
 
 - In browser(DOM) context, The virtual file system uses localStorage / IndexedDB to store files. `/tmp` is mounted as a RAM disk, the content is cleared on reload.
 - In Worker context, The entire file system is mouted as RAM disk in default. IndexedDB can be mounted.
-- See [@hoge1e3/fs](https://www.npmjs.com/package/@hoge1e3/fs) for details of file system API
+- See [petit-fs](https://www.npmjs.com/package/@hoge1e3/petit-fs) for details of file system API
