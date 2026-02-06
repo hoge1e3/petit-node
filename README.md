@@ -64,6 +64,8 @@ console.log(dev.df());
 ```
 [Run in codepen](https://codepen.io/hoge1e3/pen/dPbyxbp)
 
+[Another silly(but powerful) example](https://www.npmjs.com/package/@acepad/here)
+
 ## API
 
 - pNode.boot(options)
