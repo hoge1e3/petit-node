@@ -14,7 +14,7 @@ npm packages can also be used when stored in the virtual file system.
 This project is designed for **mobile-first programming**, where traditional Node.js workflows (terminals, ports, server restarts) are not needed at all. 
 
 petit-node was originally developed as the core runtime of
-[[acepad](https://hoge1e3.github.io/acepad/)](https://github.com/hoge1e3/acepad-dev),
+[acepad](https://github.com/hoge1e3/acepad-dev),
 a programming environment optimized for smartphones and tablets.
 
 The virtual file system is provided by
