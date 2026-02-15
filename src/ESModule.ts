@@ -98,7 +98,10 @@ export class ESModuleCompiler {
                 if (path.match(/^https?:/)) {
                     return path;
                 }
-                const e=ModuleEntry.resolve("import", path,base);
+                //Todo: resolveAsync?
+                const e=await retry(()=>
+                  ModuleEntry.resolve
+                  ("import", path,base));
                 this.depChecker.add(entry.file.path(), e.file.path());
                 const compiled: Module = await this.compileCJSFallback(e);
                 if (!compiled.url) throw new Error("URL is not set for "+e.file);
@@ -162,4 +165,17 @@ export function traceInvalidImport(original:Error, start:CompiledESModule) {
     findFrom(start);
     if (candidates.length==0) return original;
     return new Error(original.message+"\n"+"Check these dependents:\n"+candidates.map((c)=>c.path).join("\n"));
+}
+async function retry<T>(f:()=>T){
+  try{
+    return f();
+  }catch(_e){
+    const e=_e as any;
+    if(e.retryPromise){
+      await e.retryPromise;
+      return f();
+    }else{
+      throw e;
+    }
+  }
 }
