@@ -10,7 +10,7 @@ import {SFile} from "@hoge1e3/fs2";
 import { DependencyContainer, Policy } from "@hoge1e3/sfile";
 import { MIMETypes } from "@hoge1e3/sfile/src/MIMETypes";
 import RootFS from "petit-fs/src/fs/RootFS";
-import { FSTypeName, IFileSystem } from "petit-fs/src/fs/types";
+import { IFileSystem } from "petit-fs/src/fs/types";
 export type TFS={
     get(path:string):SFile;
     setDefaultPolicy(policy?:Policy):void;
