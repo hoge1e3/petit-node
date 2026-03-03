@@ -39,7 +39,7 @@ type Core={
     process:any,
     Buffer:BufferConstructor,
 };
-export let core:Core|null=null;//=setupCore();
+export let core:Core|null=null;
 declare let globalThis:any;
 //declare let global:any;
 type SFile=sfile.SFile;
@@ -230,7 +230,6 @@ export async function importModule(path: string|SFile, base?:string|SFile):Promi
         if (typeof path!=="string") throw invalidSpec();
         ent=resolveEntry("import",path,base);
     } else {
-        //if (typeof path==="string") throw invalidSpec();
         ent=resolveEntry("import", path);
     }
     const compiler=ESModuleCompiler.create();

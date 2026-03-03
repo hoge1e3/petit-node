@@ -121,9 +121,6 @@ export class ModuleCache implements IModuleCache {
             this.byURL.set(m.url, m);
         }
     }
-    /*getByFile(f:SFile) {
-        return this.getByPath(f.path());
-    }*/
     getByPath(path:string, skipCheckReload=false) {
         const e=this.byPath.get(path);
         return skipCheckReload ? e : this.checkReload(e);

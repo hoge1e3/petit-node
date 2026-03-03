@@ -9,7 +9,6 @@ type RequireFunc=((path:string)=>ModuleValue)&{
     freezeDeps():void,
     resolve(path:string):string,
 };
-//type Module={exports:ModuleValue};
 function wrapException(e:Error, pos:string) {
     const res=new Error("At "+pos+"\n"+e.message);
     res.stack=e.stack;
@@ -20,16 +19,10 @@ export class CJSCompiler {
     static create(): CJSCompiler {
         return new CJSCompiler();
     }
-    //deps=new Set<CompiledCJS>();
-    //file:SFile;
-    //base:SFile;
     cache: IModuleCache;
     constructor(
     ) {
-        //this.file=entry.file;
-        //this.base=entry.file.up()!;
         this.cache=getAliases();
-        //if (!this.base) throw new Error(this.file+" cannot create base.");
     }
     requireFunc(base:SFile):RequireFunc {
         const deps=new Map<string, Module>();

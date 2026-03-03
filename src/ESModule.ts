@@ -1,7 +1,5 @@
-//import { RawSourceMap, SourceMapConsumer } from "source-map";
 import {addURL, getAliases } from "./alias.js";
 import { convert } from "./convImport.js";
-//type SFile=FS.SFile;
 import { Aliases, Module } from "../types/index.js";
 import { CompiledESModule, ModuleEntry } from "./Module.js";
 import { CJSCompiler } from "./CommonJS.js";
@@ -91,14 +89,12 @@ export class ESModuleCompiler {
             conv: async(path:string):Promise<string>=>{
                 const m=aliases.getByPath(path);
                 if (m?.url) {
-                    //const a=aliases.get(path)!;
                     deps.push(m);
                     return m.url;
                 }
                 if (path.match(/^https?:/)) {
                     return path;
                 }
-                //Todo: resolveAsync?
                 const e=await retry(()=>
                   ModuleEntry.resolve
                   ("import", path,base));

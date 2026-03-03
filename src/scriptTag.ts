@@ -5,5 +5,3 @@ export function jsToBlobURL(jsCodeString:string):string{
         { type: 'application/javascript' });
     return URL.createObjectURL(blob);
 }
-declare let define:any, requirejs:any, document:any;
-type AttrList={[key:string]:string};

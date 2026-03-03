@@ -1,9 +1,6 @@
 import type {ExportAllDeclaration, ExportDefaultDeclaration, ExportNamedDeclaration, ImportDeclaration, Literal} from "acorn";
 import * as espree from 'espree';
-//import { generate } from 'escodegen';
 import { simple, SimpleVisitors } from "acorn-walk";
-//import { SourceMapGenerator } from "source-map";
-//import { Content } from "@hoge1e3/fs2";
 import { CompiledESModule} from "./Module.js";
 import { ModuleEntry } from "./Module.js";
 import { Module } from "../types/index.js";

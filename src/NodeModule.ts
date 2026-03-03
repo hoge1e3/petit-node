@@ -11,20 +11,6 @@ type PackageJson={
     type?:"module"|"commonJS",
 }
 export class NodeModule {
-    /*
-    #!run
-
-export async function main(){
-  const base="/idb/pnode-ws/node_modules/ajv-formats";
-  const codegen_1 = pNode.require(
-    "ajv/dist/compile/codegen",base);
-  console.log(codegen_1+"");
-  const e=pNode.resolveEntry("require",
-  "ajv/dist/compile/codegen",
-  base);
-  console.log("ent",e);
-  return ;
-}*/
     static parsePath(path:string):[string,string] {
         /*
         "a"      -> ["a","."]
@@ -51,9 +37,6 @@ export async function main(){
     }
     getMain(wantModuleType:ImportOrRequire):SFile {
         return this.getEntry(wantModuleType);
-        /*const p=this.packageJsonFile();
-        const o=this.packageJson();
-        return p.sibling(o.main||"index.js");*/
     }
     getEntry(wantModuleType:ImportOrRequire, subpath: string="."):SFile {
         if (wantModuleType==="require") {
@@ -110,24 +93,18 @@ export async function main(){
     }
 
     resolveImportRaw(path="."):rex.Exports.Output[0]|undefined{
-        //try {
-            const pkg=this.packageJson();
-            // returns undefined if pkg.exports is not present
-            // throws error if pkg.exports is present but pkg.exports[path] is not present
-            const r=rex.exports(pkg, path);
-            if (r) return r[0];
-        /*} catch(e){
-        }*/
+        const pkg=this.packageJson();
+        // returns undefined if pkg.exports is not present
+        // throws error if pkg.exports is present but pkg.exports[path] is not present
+        const r=rex.exports(pkg, path);
+        if (r) return r[0];
     }
     resolveRequireRaw(path="."):rex.Exports.Output[0]|undefined{
-        //try {
-            const pkg=this.packageJson();
-            // returns undefined if pkg.exports is not present
-            // throws error if pkg.exports is present but pkg.exports[path] is not present
-            const r=rex.exports(pkg, path, {require:true});
-            if (r) return r[0];
-        /*} catch(e){
-        }*/
+        const pkg=this.packageJson();
+        // returns undefined if pkg.exports is not present
+        // throws error if pkg.exports is present but pkg.exports[path] is not present
+        const r=rex.exports(pkg, path, {require:true});
+        if (r) return r[0];
     }
     resolveLegacy(){
         try {
