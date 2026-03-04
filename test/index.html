@@ -4,7 +4,7 @@
 import {main} from "./setup.js";
 const fixture={
     "main.js": `
-import {urlToFile} from "petit-node";
+import {urlToFile} from "pnode:main";
 console.log("Hello, petit-node!");
 let home=urlToFile(import.meta.url).up();
 document.body.innerHTML=home.rel("main.html").text();
