@@ -6,7 +6,7 @@ import {main} from "./setup.js";
 const fixture={
     "main.js": `
 import * as ace from "ace";
-import {urlToFile} from "petit-node";
+import {urlToFile} from "pnode:main";
 const home=urlToFile(import.meta.url).up();
 document.body.innerHTML=home.rel("main.html").text();
 const element=document.querySelector("#editor");

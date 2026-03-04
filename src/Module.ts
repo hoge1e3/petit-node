@@ -1,9 +1,9 @@
 import { SFile } from "@hoge1e3/sfile";
 import { NodeModule, pathFallback } from "./NodeModule.js";
 import * as FS from "@hoge1e3/fs2";
-import { FileBasedModuleType, IModuleCache, ImportOrRequire, Module, ModuleValue } from "../types/";
+import { FileBasedModuleType, ICompiledCJS, ICompiledESModule, IModuleCache, IModuleEntry, ImportOrRequire, Module, ModuleValue } from "../types/";
 
-export class ModuleEntry {
+export class ModuleEntry implements IModuleEntry{
     constructor(
         public file: SFile,
         public sourceCode: string,
@@ -37,11 +37,8 @@ export class ModuleEntry {
         return ModuleEntry.fromFile(file);
     }
 }
-export interface FileBasedModule extends Module {
-    readonly type:FileBasedModuleType;
-    entry:ModuleEntry;
-}
-export class CompiledESModule implements FileBasedModule {
+
+export class CompiledESModule implements ICompiledESModule {
     readonly type="ES";
     public readonly path:string;
     constructor(
@@ -63,7 +60,7 @@ export class CompiledESModule implements FileBasedModule {
         URL.revokeObjectURL(this.url);
     }
 }
-export class CompiledCJS implements FileBasedModule{
+export class CompiledCJS implements ICompiledCJS{
     readonly type="CJS";
     public readonly path:string;
     public url:string|undefined;

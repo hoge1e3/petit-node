@@ -6,7 +6,7 @@ import {main} from "./setup.js";
 const fixture={
     "package.json":`{"type":"module"}`,
     "main.js": `
-import {on} from "petit-node";
+import {on} from "pnode:main";
 import {foo,bar} from "./my_module.js";
 on("error", (evt)=>{
     console.error(evt);

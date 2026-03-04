@@ -3,7 +3,7 @@
 import * as _FS from "@hoge1e3/fs2";
 import {EventHandler} from "@hoge1e3/events";
 import { initModuleGlobal, addAlias, addAliases,getAliases, addURL } from "./alias.js";
-export { addAlias, addAliases, getAliases } from "./alias.js";
+export { addAlias, addAliases,  getAliases } from "./alias.js";
 import { ESModuleCompiler, traceInvalidImport } from "./ESModule.js";
 export { ESModuleCompiler} from "./ESModule.js";
 import { NodeModule } from "./NodeModule.js";
@@ -15,7 +15,8 @@ import assert from "@hoge1e3/assert";// Replace with assert polyfill, chai.asser
 import * as util from "@hoge1e3/util";
 import * as url from "@hoge1e3/url";
 import * as sfile from "@hoge1e3/sfile";
-import { AliasHash, ImportOrRequire, Module, ModuleValue, TFS } from "../types/";
+import { BootOptions, Core, IModuleCache, ImportOrRequire, Module, ModuleValue, PNode, TFS } from "../types/";
+import {require} from "./CommonJS.js";
 export {require, CJSCompiler} from "./CommonJS.js";
 import { CompiledCJS, CompiledESModule, ModuleEntry } from "./Module.js";
 export { CompiledESModule, ModuleEntry } from "./Module.js";
@@ -27,16 +28,7 @@ import * as vm from "./polyfills/vm.js";
 import * as constants from "./polyfills/constants.js";
 import * as stream from "./polyfills/stream.js";
 import { DeviceManager } from "petit-fs/src/vfsUtil.js";
-import { Fstab } from "petit-fs/src/types.js";
-type Core={
-    FS:TFS,
-    os:any,
-    fs:any,
-    dev:any,
-    path:any,
-    process:any,
-    Buffer:BufferConstructor,
-};
+
 declare let globalThis:any;
 //declare let global:any;
 type SFile=sfile.SFile;
@@ -68,18 +60,9 @@ function mod2obj<T extends object>(o:T):T&{default:T}{
 //export let FS:TFS|null=null;//=(mod2obj(core.FS));
 export const thisUrl=()=>(
     new URL(import.meta.url));
-export let events=new EventHandler();
-export let on=events.on.bind(events);
-export const ESModule=CompiledESModule;
-type Initializer=(p:{FS:TFS, pNode: typeof pNode })=>Promise<any>;
 
-type BootOptions={
-    aliases: AliasHash|undefined,
-    init: Initializer|undefined,
-    core: Core|undefined,
-    main: string|SFile|undefined,
-    fstab: Fstab[]|undefined,
-};
+export const ESModule=CompiledESModule;
+
 
 
 function hackTimeouts(){
@@ -104,29 +87,34 @@ function hackTimeouts(){
 };*/
 const invalidSpec=()=>new Error("Invalid argument: either (file) or (str,file)");
 type ErrorEvent={filename:string,colno:number,lineno:number,error:Error,message:string};
-export class PNode {
-core:Core|null=null;
+
+export let events=new EventHandler();
+export let on=events.on.bind(events);
+const pNode:PNode={
+events, on,
+core:null as Core|null,
+version,
 file(path:string):SFile{
     return this.getFS().get(path);
-}
+},
 getFS(): TFS { 
     if (!this.FS) throw new Error("FS is not set");
     return this.FS; 
-}
+},
 getNodeLikeFs(): typeof import("node:fs") {
     return this.getCore()?.fs;
-}
+},
 getDeviceManager():DeviceManager {
     return this.getCore()?.dev;
-}
-getCore(){ return this.core; }
-builtInAliases:{[key:string]:ModuleValue}={};
+},
+getCore(){ return this.core; },
+builtInAliases:{} as {[key:string]:ModuleValue},
 dupNodePrefix(keys:string[]){
     for (let k of keys) {
         this.builtInAliases[`node:${k}`]=this.builtInAliases[k];
     }
-}
-FS:TFS|undefined;
+},
+FS:undefined as TFS|undefined,
 async boot(options:BootOptions={
     aliases:undefined, init: undefined, core: undefined,
     main: undefined, fstab: undefined,
@@ -175,6 +163,12 @@ async boot(options:BootOptions={
     globalThis.global=globalThis;
     globalThis.Buffer=globalThis.Buffer||core.Buffer;
     hackTimeouts();
+    try{
+       globalThis.addEventListener("error",this.errorHandler.bind(this));
+       globalThis.addEventListener("unhandledrejection",this.errorHandler.bind(this));
+    } catch(e){
+        console.error(e);
+    }
     for (let k in builtInAliases) {
         addAlias(k, builtInAliases[k] as ModuleValue);
     }
@@ -193,13 +187,13 @@ async boot(options:BootOptions={
         let file=(typeof main=="string"? FS.get(main): main as SFile);
         return await this.importModule(file);       
     }
-}
+},
 init(options:BootOptions={
     aliases:undefined, init: undefined, core: undefined,
     main: undefined, fstab: undefined,
-}){return this.boot(options);}
-resolveEntry(wantModuleType: ImportOrRequire, path: string|SFile):ModuleEntry;
-resolveEntry(wantModuleType: ImportOrRequire, path: string, base: string|SFile):ModuleEntry;
+}){return this.boot(options);},
+//resolveEntry(wantModuleType: ImportOrRequire, path: string|SFile):ModuleEntry;
+//resolveEntry(wantModuleType: ImportOrRequire, path: string, base: string|SFile):ModuleEntry;
 resolveEntry(wantModuleType: ImportOrRequire, path: string|SFile ,base?:string|SFile):ModuleEntry{
     let mod:ModuleEntry;
     if(base){
@@ -218,9 +212,9 @@ resolveEntry(wantModuleType: ImportOrRequire, path: string|SFile ,base?:string|S
         }
     }
     return mod;
-}
-importModule(path: string|SFile):Promise<ModuleValue>;
-importModule(path: string, base: string|SFile):Promise<ModuleValue>;
+},
+//importModule(path: string|SFile):Promise<ModuleValue>;
+//importModule(path: string, base: string|SFile):Promise<ModuleValue>;
 async importModule(path: string|SFile, base?:string|SFile):Promise<ModuleValue>{
     let ent;
     const aliases=getAliases();
@@ -246,11 +240,11 @@ async importModule(path: string|SFile, base?:string|SFile):Promise<ModuleValue>{
         }
         throw err;
     }
-}
+},
 async createModuleURL(f:SFile):Promise<string>{
     const compiler=ESModuleCompiler.create();
     return (await compiler.compile(ModuleEntry.fromFile(f))).url;
-}
+},
 errorHandler(ee:ErrorEvent){
     this.convertStack(ee.error);
     events.fire("error",{
@@ -258,10 +252,10 @@ errorHandler(ee:ErrorEvent){
         colno:ee.colno, lineno:ee.lineno,
         error: ee.error, message: this.convertStack(ee.message),
     });
-}
+},
 convertStack<T extends string|Error>(stack:T):T {
     return stack as T;
-}
+},
 /*
 try{
     globalThis.convert=convert;
@@ -270,14 +264,14 @@ try{
 }
 */
 
-loadedModules() {
+loadedModules():IModuleCache {
     return getAliases();
-}
+},
 urlToPath(url:string):string {
     let ent=this.loadedModules().getByURL(url, true);
     if (!ent) return url;
     return ent.path;
-}
+},
 urlToFile(url:string):SFile {
     let mod=this.loadedModules().getByURL(url, true);
     if (!mod) throw new Error(`${url} is not loaded.`);
@@ -285,7 +279,7 @@ urlToFile(url:string):SFile {
         return mod.entry.file;
     }
     throw new Error(`${url}(${mod.path}) is not associated to a file.`);
-}
+},
 addPrecompiledESModule(path:string, timestamp:number, compiledCode: string, dependencies:Module[]):CompiledESModule {
     const file=this.getFS().get(path);
     const aliases=getAliases();
@@ -295,7 +289,7 @@ addPrecompiledESModule(path:string, timestamp:number, compiledCode: string, depe
     const res=new CompiledESModule(entry, deps, url, compiledCode);
     aliases.add(res);
     return res;
-}
+},
 addPrecompiledCJSModule(path:string, timestamp:number, compiledCode:Function, dependencyMap:Map<string,Module>):CompiledCJS {
     const file=this.getFS().get(path);
     const aliases=getAliases();
@@ -316,11 +310,20 @@ addPrecompiledCJSModule(path:string, timestamp:number, compiledCode:Function, de
     aliases.add(res);
     addURL(res);
     return res
-}
-default:PNode|undefined;
+},
+// TODO
+getAliases,
+addAliases,
+addAlias,
+require,
+clone(_globalThis:any):PNode {
+    throw new Error("Not implemented.");
+},
+// TODO
+default:undefined as (typeof pNode|undefined),
 }//of class PNode
 
-let pNode=new PNode();
+//let pNode=new PNode();
 export default pNode;
 pNode.default=pNode;
 

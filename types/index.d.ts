@@ -11,6 +11,9 @@ import { DependencyContainer, Policy } from "@hoge1e3/sfile";
 import { MIMETypes } from "@hoge1e3/sfile/src/MIMETypes";
 import RootFS from "petit-fs/src/fs/RootFS";
 import { IFileSystem } from "petit-fs/src/fs/types";
+import { DeviceManager } from "petit-fs/src/vfsUtil.js";
+import { Fstab } from "petit-fs/src/types.js";
+import { EventHandler } from "@hoge1e3/events";
 export type TFS={
     get(path:string):SFile;
     setDefaultPolicy(policy?:Policy):void;
@@ -43,6 +46,10 @@ export type FSDEPS={
     //JSZip:typeof import("jszip"),
 }
 export type ImportOrRequire="import"|"require";
+export interface FileBasedModule extends Module {
+    readonly type:FileBasedModuleType;
+    entry:IModuleEntry;
+}
 export type FileBasedModuleType="ES"|"CJS";
 export type ModuleType=FileBasedModuleType|"Builtin"|"External";
 export interface Module{
@@ -53,6 +60,28 @@ export interface Module{
     dependencies: Module[],
     shouldReload():boolean;
     shouldReloadLoop(path: Set<Module>): boolean;
+    dispose(): void;
+}
+
+export interface ICompiledESModule extends FileBasedModule {
+    type: "ES";
+    entry: IModuleEntry;
+    dependencies: Module[];
+    url: string;
+    generatedCode: string;
+    shouldReload(): boolean;
+    //shouldReloadLoop(path: Set<Module>): boolean;
+    dispose(): void;
+}
+export interface ICompiledCJS extends FileBasedModule  {
+    type: "CJS";
+    entry: IModuleEntry;
+    dependencyMap: Map<string, Module>;
+    value: ModuleValue;
+    generatedCode: string;
+    url?: string;
+    shouldReload(): boolean;
+    //shouldReloadLoop(path: Set<Module>): boolean;
     dispose(): void;
 }
 /*export type RawModuleEntry={
@@ -82,3 +111,75 @@ export type AliasHash={[key:string]:ModuleValue};
     fstab():IFileSystem[];
     commitPromise():Promise<void>;
 }*/
+export type Core={
+    FS:TFS,
+    os:any,
+    fs:any,
+    dev:any,
+    path:any,
+    process:any,
+    Buffer:BufferConstructor,
+};
+export type BootOptions={
+    aliases: AliasHash|undefined,
+    init: Initializer|undefined,
+    core: Core|undefined,
+    main: string|SFile|undefined,
+    fstab: Fstab[]|undefined,
+};
+export type Initializer=(p:{FS:TFS, pNode: PNode })=>Promise<any>;
+export interface IModuleEntry{
+    file: SFile,
+    sourceCode: string,
+    timestamp: number,
+    _shouldReload():boolean;
+    moduleType():FileBasedModuleType,
+}
+export interface PNode {
+    version: string,
+  core: Core | null;
+  file(path: string): SFile;
+  getFS(): TFS;
+  getNodeLikeFs(): typeof import("node:fs");
+  getDeviceManager(): DeviceManager;
+  getCore(): Core | null;
+  builtInAliases: { [key: string]: ModuleValue };
+  dupNodePrefix(keys: string[]): void;
+  FS: TFS | undefined;
+  boot(options?: BootOptions): Promise<any>;
+  init(options?: BootOptions): Promise<any>;
+  resolveEntry(wantModuleType: ImportOrRequire, path: string|SFile):IModuleEntry;
+  resolveEntry(wantModuleType: ImportOrRequire, path: string, base: string|SFile):IModuleEntry;
+  resolveEntry(
+    wantModuleType: ImportOrRequire,
+    path: string | SFile,
+    base?: string | SFile
+  ): IModuleEntry;
+  importModule(path: string|SFile):Promise<ModuleValue>;
+  importModule(path: string, base: string|SFile):Promise<ModuleValue>;
+  importModule(
+    path: string | SFile,
+    base?: string | SFile
+  ): Promise<ModuleValue>;
+  createModuleURL(f:SFile):Promise<string>;
+  errorHandler(ee:ErrorEvent):void;
+  convertStack<T extends string|Error>(stack:T):T;
+  loadedModules():IModuleCache;
+  urlToPath(url:string):string;
+  urlToFile(url:string):SFile;
+  addPrecompiledESModule(path:string, timestamp:number, compiledCode: string, dependencies:Module[]):ICompiledESModule;
+  addPrecompiledCJSModule(path:string, timestamp:number, compiledCode:Function, dependencyMap:Map<string,Module>):ICompiledCJS;
+  events: EventHandler;
+  on: EventHandler["on"];
+  getAliases():IModuleCache;
+  loadedModules():IModuleCache;
+  addAliases(p:AliasHash):void;
+  addAlias(path:string, value:ModuleValue, properties?:string[]):void;
+  require(path:string):ModuleValue;
+  require(file:SFile):ModuleValue;
+  require(path:string, base:SFile):ModuleValue;
+  require(path:string, base:string):ModuleValue;
+  require(porf:string|SFile, base?:SFile|string):ModuleValue;
+  clone(_globalThis:any):PNode;
+  default: PNode | undefined;
+}
