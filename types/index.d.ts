@@ -62,6 +62,29 @@ export interface Module{
     shouldReloadLoop(path: Set<Module>): boolean;
     dispose(): void;
 }
+export interface IAliases {
+    addAliases(p:AliasHash):void;
+    addAlias(path:string, value:ModuleValue, properties?:string[]):void;   cache:IModuleCache;
+    addURL(module:ICompiledCJS/*, properties?:string[]*/):void;
+    scriptingContext: ScriptingContext;
+    initModuleGlobal():Promise<GlobalInfo>;
+}
+export interface ESModuleCompilerParam extends ESModuleCompilerHandlers{
+    aliases: IAliases,
+}
+export interface ESModuleCompilerHandlers {
+    oncompilestart?:(e:CompileStartEvent)=>Promise<void>;
+    oncompiled?:(e:CompiledEvent)=>Promise<void>;
+    oncachehit?:(e:CompileStartEvent)=>Promise<void>;
+}
+export type CompiledEvent={
+    module: Module,
+};
+export type CompileStartEvent={
+    entry: IModuleEntry,
+    byOtherCompiler?: boolean,
+    isCJS?: boolean,
+};
 
 export interface ICompiledESModule extends FileBasedModule {
     type: "ES";
@@ -95,7 +118,7 @@ export type GlobalInfo={
     value: GlobalValue,
     url: string,
 };
-export type Aliases=IModuleCache;//Map<string, Module>;//{[key:string]: Alias};
+//export type Aliases=IModuleCache;//Map<string, Module>;//{[key:string]: Alias};
 export interface IModuleCache extends Iterable<Module> {
     add(m:Module):void;
     delete(m:Module):void;
@@ -135,8 +158,12 @@ export interface IModuleEntry{
     _shouldReload():boolean;
     moduleType():FileBasedModuleType,
 }
+export interface IESModuleCompiler{
+    compile(entry:IModuleEntry):Promise<ICompiledESModule>;
+}
 export interface PNode {
-    version: string,
+  aliases:IAliases,
+  version: string,
   core: Core | null;
   file(path: string): SFile;
   getFS(): TFS;
@@ -161,12 +188,14 @@ export interface PNode {
     path: string | SFile,
     base?: string | SFile
   ): Promise<ModuleValue>;
+  import: PNode["importModule"],
   createModuleURL(f:SFile):Promise<string>;
   errorHandler(ee:ErrorEvent):void;
   convertStack<T extends string|Error>(stack:T):T;
   loadedModules():IModuleCache;
   urlToPath(url:string):string;
   urlToFile(url:string):SFile;
+  createESModuleCompiler(handlers?:ESModuleCompilerHandlers):IESModuleCompiler;
   addPrecompiledESModule(path:string, timestamp:number, compiledCode: string, dependencies:Module[]):ICompiledESModule;
   addPrecompiledCJSModule(path:string, timestamp:number, compiledCode:Function, dependencyMap:Map<string,Module>):ICompiledCJS;
   events: EventHandler;
@@ -183,3 +212,20 @@ export interface PNode {
   clone(_globalThis:any):PNode;
   default: PNode | undefined;
 }
+export type ScriptingContext={
+    Blob: typeof Blob,
+    URL: typeof URL,
+    importModule: (url:string)=>Promise<any>,
+    Function: typeof Function,
+    eval: (script:string)=>any,
+}
+/*
+  const scrt=ig.document.createElement("script");
+  const id=Math.random()+"";
+  scrt.innerHTML=`globalThis[${id}]={
+  importModule:(url)=>import(url),Blob,URL,
+};`;
+  ig.document.body.appendChild(scrt);
+  const ictx=ig[id];
+  delete ig[id];
+*/

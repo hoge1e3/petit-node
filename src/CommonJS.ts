@@ -1,7 +1,7 @@
 import { SFile } from "@hoge1e3/sfile";
-import { IModuleCache, Module, ModuleValue } from "../types";
+import { IAliases, IModuleCache, Module, ModuleValue, ScriptingContext } from "../types";
 import * as FS from "@hoge1e3/fs2";
-import { getAliases } from "./alias.js";
+import { Aliases } from "./alias.js";
 import { CompiledCJS, ModuleEntry } from "./Module.js";
 import {ex} from "./errors.js";
 type RequireFunc=((path:string)=>ModuleValue)&{
@@ -16,13 +16,20 @@ function wrapException(e:Error, pos:string) {
     return res;
 }
 export class CJSCompiler {
-    static create(): CJSCompiler {
-        return new CJSCompiler();
+    static create(aliases: IAliases): CJSCompiler {
+        return new CJSCompiler(aliases);
     }
-    cache: IModuleCache;
+    aliases: IAliases;
+    get cache():IModuleCache{
+        return this.aliases.cache;
+    }
+    get ctx():ScriptingContext {
+        return this.aliases.scriptingContext;
+    }
     constructor(
+        aliases: IAliases
     ) {
-        this.cache=getAliases();
+        this.aliases=aliases;
     }
     requireFunc(base:SFile):RequireFunc {
         const deps=new Map<string, Module>();
@@ -78,7 +85,7 @@ export class CJSCompiler {
             entry.file.endsWith(".json") ? 
             `module.exports=${entry.sourceCode};`:
             entry.sourceCode)+"\n"+sourceURL;
-        const func=new Function("require", "exports","module","__filename", "__dirname", funcSrc);
+        const func=new this.ctx.Function("require", "exports","module","__filename", "__dirname", funcSrc);
         const args=this.requireArguments(file);
         const module=args[2];
         const deps=args[0].deps;
@@ -100,11 +107,11 @@ export class CJSCompiler {
     
 }
 
-export function require(path:string):ModuleValue;
-export function require(file:SFile):ModuleValue;
-export function require(path:string, base:SFile):ModuleValue;
-export function require(path:string, base:string):ModuleValue;
-export function require(porf:string|SFile, base?:SFile|string):ModuleValue {
+export function require(aliases:IAliases,path:string):ModuleValue;
+export function require(aliases:IAliases,file:SFile):ModuleValue;
+export function require(aliases:IAliases,path:string, base:SFile):ModuleValue;
+export function require(aliases:IAliases,path:string, base:string):ModuleValue;
+export function require(aliases:IAliases,porf:string|SFile, base?:SFile|string):ModuleValue {
     const path=(typeof porf==="string"? porf: porf.path());
     let fbase:SFile;
     if (!base) {
@@ -121,5 +128,5 @@ export function require(porf:string|SFile, base?:SFile|string):ModuleValue {
         fbase=base;
     }
     const entry = ModuleEntry.resolve("require", path, fbase);
-    return new CJSCompiler().compile(entry).value;
+    return new CJSCompiler(aliases).compile(entry).value;
 }

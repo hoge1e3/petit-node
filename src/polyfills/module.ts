@@ -1,8 +1,8 @@
 import { CJSCompiler } from "../CommonJS.js";
-import { TFS } from "../../types/index.js";
+import { IAliases, TFS } from "../../types/index.js";
 
-export function createModulePolyfill(FS:TFS) {
-    const cjs=CJSCompiler.create();
+export function createModulePolyfill(aliases:IAliases, FS:TFS) {
+    const cjs=CJSCompiler.create(aliases);
     return {
         builtinModules:[
         "_http_agent","_http_client","_http_common","_http_incoming","_http_outgoing","_http_server",

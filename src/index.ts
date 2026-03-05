@@ -2,8 +2,8 @@
 
 import * as _FS from "@hoge1e3/fs2";
 import {EventHandler} from "@hoge1e3/events";
-import { initModuleGlobal, addAlias, addAliases,getAliases, addURL } from "./alias.js";
-export { addAlias, addAliases,  getAliases } from "./alias.js";
+import { Aliases } from "./alias.js";
+//export { addAlias, addAliases,  getAliases } from "./alias.js";
 import { ESModuleCompiler, traceInvalidImport } from "./ESModule.js";
 export { ESModuleCompiler} from "./ESModule.js";
 import { NodeModule } from "./NodeModule.js";
@@ -15,7 +15,7 @@ import assert from "@hoge1e3/assert";// Replace with assert polyfill, chai.asser
 import * as util from "@hoge1e3/util";
 import * as url from "@hoge1e3/url";
 import * as sfile from "@hoge1e3/sfile";
-import { BootOptions, Core, IModuleCache, ImportOrRequire, Module, ModuleValue, PNode, TFS } from "../types/";
+import { AliasHash, BootOptions, Core, ESModuleCompilerHandlers, ESModuleCompilerParam, IModuleCache, ImportOrRequire, Module, ModuleValue, PNode, ScriptingContext, TFS } from "../types/";
 import {require} from "./CommonJS.js";
 export {require, CJSCompiler} from "./CommonJS.js";
 import { CompiledCJS, CompiledESModule, ModuleEntry } from "./Module.js";
@@ -59,7 +59,7 @@ function mod2obj<T extends object>(o:T):T&{default:T}{
 
 //export let FS:TFS|null=null;//=(mod2obj(core.FS));
 export const thisUrl=()=>(
-    new URL(import.meta.url));
+    new URL(/* webpackIgnore: true */import.meta.url));
 
 export const ESModule=CompiledESModule;
 
@@ -90,7 +90,18 @@ type ErrorEvent={filename:string,colno:number,lineno:number,error:Error,message:
 
 export let events=new EventHandler();
 export let on=events.on.bind(events);
+function createScriptingContext(g:any):ScriptingContext {
+    return {
+        Blob: g.Blob,
+        URL: g.URL,
+        Function: g.Function,
+        eval: (s)=>g.eval(s),
+        importModule: (url)=>import(/* webpackIgnore: true */url)  
+    };
+}
+const scriptingContext:ScriptingContext=createScriptingContext(globalThis);
 const pNode:PNode={
+aliases: new Aliases(scriptingContext),
 events, on,
 core:null as Core|null,
 version,
@@ -119,7 +130,7 @@ async boot(options:BootOptions={
     aliases:undefined, init: undefined, core: undefined,
     main: undefined, fstab: undefined,
 }) {
-    await initModuleGlobal();
+    await this.aliases.initModuleGlobal();
     const {aliases, init, fstab, main}=options;
     const core=options.core||setupCore();
     const FS=mod2obj(core.FS);
@@ -144,7 +155,7 @@ async boot(options:BootOptions={
         url,
         // polyfills
         querystring,vm,constants,stream,
-        module: createModulePolyfill(FS),
+        module: createModulePolyfill(this.aliases, FS),
         "pnode:chai": chai,
         "pnode:jszip": JSZip,
         "pnode:espree": espree,
@@ -170,10 +181,10 @@ async boot(options:BootOptions={
         console.error(e);
     }
     for (let k in builtInAliases) {
-        addAlias(k, builtInAliases[k] as ModuleValue);
+        this.aliases.addAlias(k, builtInAliases[k] as ModuleValue);
     }
     if (aliases) {
-        addAliases(aliases);
+        this.aliases.addAliases(aliases);
     }
     if (fstab) {
         await this.getDeviceManager().loadFstab(fstab);
@@ -217,9 +228,9 @@ resolveEntry(wantModuleType: ImportOrRequire, path: string|SFile ,base?:string|S
 //importModule(path: string, base: string|SFile):Promise<ModuleValue>;
 async importModule(path: string|SFile, base?:string|SFile):Promise<ModuleValue>{
     let ent;
-    const aliases=getAliases();
+    const aliases=this.aliases;
     const _path=typeof path==="string"?path:path.path();
-    const incache=aliases.getByPath(_path);
+    const incache=aliases.cache.getByPath(_path);
     if (incache?.value) {
         return incache.value;
     } else if (base) {
@@ -228,22 +239,33 @@ async importModule(path: string|SFile, base?:string|SFile):Promise<ModuleValue>{
     } else {
         ent=this.resolveEntry("import", path);
     }
-    const compiler=ESModuleCompiler.create();
+    const compiler=ESModuleCompiler.create({
+        aliases: this.aliases,
+    });
     const compiled=await compiler.compile(ent);
     let u=compiled.url;
     try {
-        return await import(/* webpackIgnore: true */u);
+        return await this.aliases.scriptingContext.importModule(/* webpackIgnore: true */u);
     } catch(err) {
         const e=err as unknown as Error;
         if (e.message.match(/blob:/)) {
-            throw traceInvalidImport(e, compiled);
+            throw traceInvalidImport(this.aliases.cache, e, compiled);
         }
         throw err;
     }
 },
+import(url:string){return this.importModule(url);},
 async createModuleURL(f:SFile):Promise<string>{
-    const compiler=ESModuleCompiler.create();
+    const compiler=ESModuleCompiler.create({
+        aliases: this.aliases,
+    });
     return (await compiler.compile(ModuleEntry.fromFile(f))).url;
+},
+createESModuleCompiler(handler: ESModuleCompilerHandlers={}):ESModuleCompiler{
+    return ESModuleCompiler.create({
+        ...handler,
+        aliases: this.aliases,
+    });
 },
 errorHandler(ee:ErrorEvent){
     this.convertStack(ee.error);
@@ -265,7 +287,7 @@ try{
 */
 
 loadedModules():IModuleCache {
-    return getAliases();
+    return this.aliases.cache;
 },
 urlToPath(url:string):string {
     let ent=this.loadedModules().getByURL(url, true);
@@ -282,23 +304,23 @@ urlToFile(url:string):SFile {
 },
 addPrecompiledESModule(path:string, timestamp:number, compiledCode: string, dependencies:Module[]):CompiledESModule {
     const file=this.getFS().get(path);
-    const aliases=getAliases();
+    const aliases=this.aliases.cache;
     const entry=ModuleEntry.fromFile(file, timestamp);
     const deps=dependencies;
-    const url=jsToBlobURL(compiledCode);
+    const url=jsToBlobURL(this.aliases.scriptingContext, compiledCode);
     const res=new CompiledESModule(entry, deps, url, compiledCode);
     aliases.add(res);
     return res;
 },
 addPrecompiledCJSModule(path:string, timestamp:number, compiledCode:Function, dependencyMap:Map<string,Module>):CompiledCJS {
     const file=this.getFS().get(path);
-    const aliases=getAliases();
+    const cache=this.aliases.cache;
     const base=file.up()!;
     const require=(path:string)=>{
-        const builtin=aliases.getByPath(path);
+        const builtin=cache.getByPath(path);
         if (builtin?.value) return builtin.value;
         const entry=ModuleEntry.resolve("require",path, base);
-        const module=aliases.getByPath(entry.file.path());
+        const module=cache.getByPath(entry.file.path());
         if (module?.value) return module.value;
         throw new Error(`Cannot resolve ${path}`);
     };
@@ -307,15 +329,28 @@ addPrecompiledCJSModule(path:string, timestamp:number, compiledCode:Function, de
     const value=compiledCode(...args);
     const entry=ModuleEntry.fromFile(file,timestamp);
     const res=new CompiledCJS(entry, dependencyMap, value, "/*preCompiledModule*/"+compiledCode);
-    aliases.add(res);
-    addURL(res);
+    cache.add(res);
+    this.aliases.addURL(res);
     return res
 },
-// TODO
-getAliases,
-addAliases,
-addAlias,
-require,
+getAliases(){return this.aliases.cache;},
+addAliases(p:AliasHash){return this.aliases.addAliases(p);},
+addAlias(path:string, value:ModuleValue, properties?:string[]) {
+    return this.aliases.addAlias(path, value, properties);
+},
+require(porf:string|SFile, base?:SFile|string):ModuleValue{
+    if(typeof porf==="string") {
+        switch (typeof base) {
+            case "undefined":
+            return require(this.aliases, porf);
+            case "string":
+            return require(this.aliases, porf, base);
+            default://SFile
+            return require(this.aliases, porf, base);
+        }
+    }
+    return require(this.aliases, porf);
+},
 clone(_globalThis:any):PNode {
     throw new Error("Not implemented.");
 },
@@ -327,9 +362,10 @@ default:undefined as (typeof pNode|undefined),
 export default pNode;
 pNode.default=pNode;
 
+
 export const FS=pNode.FS;
-//export const addAlias=pNode.addAlias;
-//export const addAliases=pNode.addAliases;
+export const addAlias=pNode.addAlias;
+export const addAliases=pNode.addAliases;
 export const addPrecompiledCJSModule=pNode.addPrecompiledCJSModule.bind(pNode);
 export const addPrecompiledESModule=pNode.addPrecompiledESModule.bind(pNode);
 export const boot=pNode.boot.bind(pNode);
@@ -338,7 +374,7 @@ export const core=pNode.core;
 export const createModuleURL=pNode.createModuleURL.bind(pNode);
 //export const events=pNode.events;
 export const file=pNode.file.bind(pNode);
-//export const getAliases=pNode.getAliases;
+export const getAliases=pNode.getAliases;
 export const getCore=pNode.getCore.bind(pNode);
 export const getDeviceManager=pNode.getDeviceManager.bind(pNode);
 export const getFS=pNode.getFS.bind(pNode);

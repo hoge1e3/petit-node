@@ -1,23 +1,32 @@
 import { uniqueName, valueToESCode } from "./ESModuleGenerator.js";
 import { BuiltinModule, CompiledCJS, ModuleCache } from "./Module.js";
 import { jsToBlobURL } from "./scriptTag.js";
-import { AliasHash, ModuleValue } from "../types/index.js";
+import { AliasHash, IAliases, IModuleCache, ModuleValue, ScriptingContext } from "../types/index.js";
 import { GlobalValue, GlobalInfo } from "../types/index.js";
 
-let gbl_info:GlobalInfo;
-export function getAliases(){
-    return gbl_info.value.aliases;
+//let gbl_info:GlobalInfo;
+export class Aliases implements IAliases{
+gbl_info:GlobalInfo|undefined;
+scriptingContext:ScriptingContext;
+constructor(ctx:ScriptingContext){
+    this.scriptingContext=ctx;
 }
-export function loadedModules() {
-    return getAliases();
+get cache():IModuleCache{
+    return this.getAliases();
 }
-export function addAliases(p:AliasHash){
+getAliases():IModuleCache{
+    return this.getGlobalInfo().value.aliases;
+}
+loadedModules() {
+    return this.getAliases();
+}
+addAliases(p:AliasHash){
     for (let k in p) {
-        addAlias(k, p[k]);
+        this.addAlias(k, p[k]);
     }
 }
-export function addURL(module:CompiledCJS/*, properties?:string[]*/) {
-    const ginf=getGlobalInfo();
+addURL(module:CompiledCJS/*, properties?:string[]*/) {
+    const ginf=this.getGlobalInfo();
     const value=module.value;
     if (value==null) throw new Error("Value is not set: "+module.path);
     if (module.url!=null) throw new Error("URL is already set: "+module.path);
@@ -31,13 +40,13 @@ let ${valueName}=${ginfName}.aliases.getByPath("${module.path}").value;
 export default ${valueName};
 //# sourceURL=pnode-alias/${module.path}
 `;
-    let blobUrl = jsToBlobURL(jsCodeString);
+    let blobUrl = jsToBlobURL(this.scriptingContext,jsCodeString);
     module.url=blobUrl;
-    getAliases().reload(module);
+    this.getAliases().reload(module);
     return blobUrl;
 }
-export function addAlias(path:string, value:ModuleValue, properties?:string[]) {
-    const ginf=getGlobalInfo();
+addAlias(path:string, value:ModuleValue, properties?:string[]) {
+    const ginf=this.getGlobalInfo();
     const keys=properties||Object.keys(value as any);
     const ginfName=uniqueName(keys);
     const valueName=uniqueName([...keys,ginfName]);
@@ -47,19 +56,21 @@ let ${valueName}=${ginfName}.aliases.getByPath("${path}").value;
 ${valueToESCode(valueName, value, keys)}
 //# sourceURL=pnode-alias/${path}
 `;
-    let blobUrl = jsToBlobURL(jsCodeString);
+    let blobUrl = jsToBlobURL(this.scriptingContext, jsCodeString);
     ginf.value.aliases.add(new BuiltinModule(path, value, blobUrl));
 }
-export function getGlobalInfo(){
-    return gbl_info;
+getGlobalInfo(){
+    if (!this.gbl_info) throw new Error("this.gbl_info not set");
+    return this.gbl_info;
 }
-export async function initModuleGlobal():Promise<GlobalInfo>{ 
+async initModuleGlobal():Promise<GlobalInfo>{ 
     const jsCodeString=`export default {};`;
-    const blobUrl = jsToBlobURL(jsCodeString);
+    const blobUrl = jsToBlobURL(this.scriptingContext, jsCodeString);
     const gbl=(
-        await import(/* webpackIgnore: true */blobUrl)
+        await this.scriptingContext.importModule(/* webpackIgnore: true */blobUrl)
     ).default as GlobalValue;
     gbl.aliases=new ModuleCache();
-    gbl_info={value: gbl, url: blobUrl};
-    return gbl_info;
+    this.gbl_info={value: gbl, url: blobUrl};
+    return this.gbl_info;
+}
 }
