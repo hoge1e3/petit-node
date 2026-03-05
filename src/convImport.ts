@@ -3,7 +3,7 @@ import * as espree from 'espree';
 import { simple, SimpleVisitors } from "acorn-walk";
 import { CompiledESModule} from "./Module.js";
 import { ModuleEntry } from "./Module.js";
-import { Module } from "../types/index.js";
+import { Module, ScriptingContext } from "../types/index.js";
 
 
 type URLConverter = {
@@ -21,7 +21,7 @@ function spliceStr(str:string,
   const lastPart = str.slice(end);
   return firstPart + (replacement || '') + lastPart;
 }
-export async function convert(entry: ModuleEntry,urlConverter:URLConverter): Promise<CompiledESModule> {
+export async function convert(sctx:ScriptingContext, entry: ModuleEntry,urlConverter:URLConverter): Promise<CompiledESModule> {
   const file=entry.file;
   try {
     const sourceCode=file.text();
@@ -63,8 +63,9 @@ export async function convert(entry: ModuleEntry,urlConverter:URLConverter): Pro
     });
     const sourceURL=`//# sourceURL=file://${file.path()}`;
     const gensrc=conv2+"\n"+sourceURL+"\n";
-    const url= URL.createObjectURL(new Blob([gensrc],{type:"text/javascript"}));
+    const url= sctx.URL.createObjectURL(new sctx.Blob([gensrc],{type:"text/javascript"}));
     return new CompiledESModule(
+      sctx,
       entry, 
       urlConverter.deps, url, gensrc);
   } catch (err) {

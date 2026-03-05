@@ -1,0 +1,34 @@
+<!--script src="../dist/index.js"></script>
+<script src="setup.js"></script-->
+<iframe ></iframe>
+<script type="module">
+import {main,prt,checkPrt,sleep} from "./setup.js";
+globalThis.prt=prt;
+const fixture={
+    "package.json": `{"type":"module"}`,
+    "main.js": `
+import {inc} from "./counter.js";
+globalThis.x=3;
+prt("x="+globalThis.x+" counter="+inc());
+const innerGlobal=document.querySelector("iframe").contentWindow;
+const cloned=pNode.clone(innerGlobal);
+globalThis.cloned=cloned;
+await cloned.boot({core: pNode.core, main:"/node/iframe.js"});
+`,
+    "iframe.js": `
+import {inc} from "./counter.js";
+globalThis.x=globalThis.x||5;
+document.body.innerHTML="x="+globalThis.x+" counter="+inc();
+parent.prt("from inner: "+document.body.innerText);
+`,
+    "counter.js":`
+// This file is shared, but modules are loaded independently by outer/inner.
+let counter=0;
+export function inc(){return counter++;}
+`,
+};
+await main(fixture);
+await sleep();
+checkPrt(`x=3 counter=0
+from inner: x=5 counter=0`);
+</script>

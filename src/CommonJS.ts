@@ -89,7 +89,8 @@ export class CJSCompiler {
         const args=this.requireArguments(file);
         const module=args[2];
         const deps=args[0].deps;
-        const compiled=new CompiledCJS( entry, deps, module.exports, funcSrc);
+        const compiled=new CompiledCJS(
+            this.ctx, entry, deps, module.exports, funcSrc);
         this.cache.add(compiled);
         try {
             func(...args);

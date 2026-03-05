@@ -96,11 +96,12 @@ function createScriptingContext(g:any):ScriptingContext {
         URL: g.URL,
         Function: g.Function,
         eval: (s)=>g.eval(s),
-        importModule: (url)=>import(/* webpackIgnore: true */url)  
+        importModule: new g.Function("url","return import(/* webpackIgnore: true */url);"),  
     };
 }
-const scriptingContext:ScriptingContext=createScriptingContext(globalThis);
-const pNode:PNode={
+export function createInstance(_globalThis:any):PNode {
+const scriptingContext:ScriptingContext=createScriptingContext(_globalThis);
+return {
 aliases: new Aliases(scriptingContext),
 events, on,
 core:null as Core|null,
@@ -190,7 +191,7 @@ async boot(options:BootOptions={
         await this.getDeviceManager().loadFstab(fstab);
     }
     if (init) {
-        let path=await init({FS, pNode});
+        let path=await init({FS, pNode:this});
         if (!path) return;
         let file=(typeof path=="string"? FS.get(path): path as SFile);
         return await this.importModule(file);            
@@ -308,7 +309,8 @@ addPrecompiledESModule(path:string, timestamp:number, compiledCode: string, depe
     const entry=ModuleEntry.fromFile(file, timestamp);
     const deps=dependencies;
     const url=jsToBlobURL(this.aliases.scriptingContext, compiledCode);
-    const res=new CompiledESModule(entry, deps, url, compiledCode);
+    const res=new CompiledESModule(
+        this.aliases.scriptingContext, entry, deps, url, compiledCode);
     aliases.add(res);
     return res;
 },
@@ -328,7 +330,8 @@ addPrecompiledCJSModule(path:string, timestamp:number, compiledCode:Function, de
     const args=[require, exports, module, filename, dirname ];
     const value=compiledCode(...args);
     const entry=ModuleEntry.fromFile(file,timestamp);
-    const res=new CompiledCJS(entry, dependencyMap, value, "/*preCompiledModule*/"+compiledCode);
+    const res=new CompiledCJS(
+        this.aliases.scriptingContext,entry, dependencyMap, value, "/*preCompiledModule*/"+compiledCode);
     cache.add(res);
     this.aliases.addURL(res);
     return res
@@ -352,13 +355,13 @@ require(porf:string|SFile, base?:SFile|string):ModuleValue{
     return require(this.aliases, porf);
 },
 clone(_globalThis:any):PNode {
-    throw new Error("Not implemented.");
+    return createInstance(_globalThis);
 },
-// TODO
-default:undefined as (typeof pNode|undefined),
-}//of class PNode
+default:undefined as (PNode|undefined),
+};//of return
+}// of createInstance
 
-//let pNode=new PNode();
+const pNode=createInstance(globalThis);
 export default pNode;
 pNode.default=pNode;
 

@@ -1,7 +1,7 @@
 import { SFile } from "@hoge1e3/sfile";
 import { NodeModule, pathFallback } from "./NodeModule.js";
 import * as FS from "@hoge1e3/fs2";
-import { FileBasedModuleType, ICompiledCJS, ICompiledESModule, IModuleCache, IModuleEntry, ImportOrRequire, Module, ModuleValue } from "../types/";
+import { FileBasedModuleType, ICompiledCJS, ICompiledESModule, IModuleCache, IModuleEntry, ImportOrRequire, Module, ModuleValue, ScriptingContext } from "../types/";
 
 export class ModuleEntry implements IModuleEntry{
     constructor(
@@ -42,6 +42,7 @@ export class CompiledESModule implements ICompiledESModule {
     readonly type="ES";
     public readonly path:string;
     constructor(
+        public readonly scriptingContext: ScriptingContext,
         public readonly entry: ModuleEntry,
         public readonly dependencies: Module[],
         public readonly url: string,
@@ -57,7 +58,7 @@ export class CompiledESModule implements ICompiledESModule {
         return this.dependencies.some((dep)=>dep.shouldReloadLoop(path));
     }
     dispose(){
-        URL.revokeObjectURL(this.url);
+        this.scriptingContext.URL.revokeObjectURL(this.url);
     }
 }
 export class CompiledCJS implements ICompiledCJS{
@@ -65,6 +66,7 @@ export class CompiledCJS implements ICompiledCJS{
     public readonly path:string;
     public url:string|undefined;
     constructor(
+        public readonly scriptingContext: ScriptingContext,
         public readonly entry: ModuleEntry,
         public readonly dependencyMap: Map<string, Module>,
         public value: ModuleValue,
@@ -83,7 +85,7 @@ export class CompiledCJS implements ICompiledCJS{
         return this.dependencies.some((dep)=>dep.shouldReloadLoop(path));
     }
     dispose(){
-        if (this.url) URL.revokeObjectURL(this.url);
+        if (this.url) this.scriptingContext.URL.revokeObjectURL(this.url);
     }
 }
 export class BuiltinModule implements Module {

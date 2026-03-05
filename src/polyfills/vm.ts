@@ -7,6 +7,7 @@ type Context={
 }
 export function runInThisContext(src:string, opt?:RunOptions){
     if (opt?.filename) src+=`\n//# sourceURL=${opt.filename}`;
+    // TODO: multiple instance
     return globalThis.eval(src);
 }
 					
@@ -24,6 +25,6 @@ export function runInContext(src:string, ctx:Context) {
         buf+=`delete globalThis.${uniq};\n`;
     }
     buf+=src;
-    //buf+=``
+    // TODO: multiple instance
     return globalThis.eval(buf);
 }
