@@ -2,7 +2,7 @@
 <!--script src="../dist/index.js"></script>
 <script src="setup.js"></script-->
 <script type="module">
-import {main} from "./setup.js";
+import {main,prt,sleep} from "./setup.js";
 const fixture={
     "main.js": `
 import * as ace from "ace";
@@ -19,5 +19,16 @@ editor.setValue(home.rel("main.js").text());
 `
 };
 const aliases = {ace};
-main(fixture, aliases);
+await main(fixture, aliases);
+await sleep();
+const expected='Editor Example\n1\n2\n3\n4\n5\n6\n7\n8\n9\nimport * as ace from "ace";\nimport {urlToFile} from "pnode:main";\nconst home=urlToFile(import.meta.url).up();\ndocument.body.innerHTML=home.rel("main.html").text();\nconst element=document.querySelector("#editor");\nconst editor=ace.edit(element);\neditor.setValue(home.rel("main.js").text());';
+const actual=document.body.innerText;
+if (actual.match(/Editor Example/) && 
+    actual.match(/ace\.edit/) &&
+    actual.match(/editor\.setValue/)
+) {
+    prt("Passed");
+} else {
+    prt("Failed Actual:"+actual);
+}
 </script>

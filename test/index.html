@@ -1,7 +1,8 @@
 <!--script src="../dist/index.js"></script>
 <script src="setup.js"></script-->
 <script type="module">
-import {main} from "./setup.js";
+import {main,prt,checkPrt,sleep} from "./setup.js";
+globalThis.prt=prt;
 const fixture={
     "main.js": `
 import {urlToFile} from "pnode:main";
@@ -24,5 +25,7 @@ document.body.innerHTML=home.rel("main.html").text();
 </ul>
 `
 };
-main(fixture);
+await main(fixture);
+await sleep();
+checkPrt((c)=>c.includes("Import ES Module"));
 </script>

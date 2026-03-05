@@ -1,8 +1,9 @@
 <!--script src="../dist/index.js"></script>
 <script src="setup.js"></script-->
 <script type="module">
-import {main, prt} from "./setup.js";
+import {main, prt, sleep, checkPrt} from "./setup.js";
 import pNode from "../dist/index.js";
+globalThis.prt=prt;
 const fixture={
     "package.json":`{"type":"module"}`,
     "main.js": `
@@ -11,7 +12,7 @@ foo(bar(21));
 `,
     "my_module.js": `
 export function foo(content) {
-    document.body.innerHTML=content;
+    prt(content);
 }
 export function bar(x) {
     return x*2;
@@ -20,11 +21,16 @@ export function bar(x) {
 
 };
 main(fixture);
-await new Promise(s=>setTimeout(s,1000));
+await sleep();
 const home=pNode.FS.get("/node/");
 const f=home.rel("my_module.js");
 f.text(f.text().replace("*2","*3"));
 prt(f+" Modified!");
-await new Promise(s=>setTimeout(s,1000));
+await sleep();
 await pNode.importModule(home.rel("main.js"));
+await sleep();
+checkPrt(`42
+/node/my_module.js Modified!
+63
+`);
 </script>

@@ -47,3 +47,25 @@ export function prt(...args){
     content.innerText=args.join(" ");
     document.body.appendChild(content);
 }
+export function checkPrt(expected) {
+    let test;
+    const actual=document.body.innerText;
+    if (typeof expected==="string") {
+        test=(actual)=>actual.trim()===expected.trim();
+    } else if (typeof expected==="function") {
+        test=expected;
+    } else {
+        test=(actual)=>test.exec(actual);
+    }
+    if (test(actual)){
+        prt("Test passed");
+    } else {
+        prt("!FAILED!");
+        prt("Excepcted:");
+        prt(expected+"");
+        prt("Actual:");
+        prt(actual+"");
+        console.log("Expected", JSON.stringify(expected));
+        console.log("Actual", JSON.stringify(actual));
+    }
+}

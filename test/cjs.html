@@ -1,15 +1,15 @@
 <!--script src="../dist/index.js"></script>
 <script src="setup.js"></script-->
 <script type="module">
-import {main, prt, sleep} from "./setup.js";
+import {main, prt, sleep,checkPrt} from "./setup.js";
 import pNode from "../dist/index.js";
 window.prt=prt;
 const fixture={
     "package.json":`{"type":"module"}`,
     "main.js": `
 import "./cjs.cjs";
-import {inc} from "./foo.cjs";
-prt(inc());
+import foo from "./foo.cjs";
+prt(foo.inc());
     `,
     "cjs.cjs": `
 const foo=require("./foo.cjs");
@@ -40,4 +40,13 @@ prt("baz.cjs reloaded");
 `);
 await pNode.import(pNode.FS.get("/node/main.js"));
 //pNode.require("/node/cjs.js");
+await sleep();
+checkPrt(`baz.cjs loaded
+foo: 0
+bar: 1
+foo: 2
+baz.cjs reloaded
+foo: 2
+bar: 4
+foo: 6`);
 </script>
