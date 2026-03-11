@@ -1,6 +1,8 @@
 import { SFile } from "@hoge1e3/sfile";
 import * as FS from "@hoge1e3/fs2";
-import { FileBasedModuleType, RawModuleEntry } from "./types";
+import { FileBasedModuleType, ImportOrRequire } from "../types";
+import * as rex from "resolve.exports";
+import { ex } from "./errors.js";
 const node_modules="node_modules/";
 const package_json="package.json";
 type PackageJson={
@@ -33,134 +35,16 @@ export class NodeModule {
     packageJson():PackageJson {
         return this.packageJsonFile().obj() as PackageJson;
     }
-    getMain(wantModuleType:FileBasedModuleType):RawModuleEntry {
+    getMain(wantModuleType:ImportOrRequire):SFile {
         return this.getEntry(wantModuleType);
-        /*const p=this.packageJsonFile();
-        const o=this.packageJson();
-        return p.sibling(o.main||"index.js");*/
     }
-    /**
-     * package.json の内容から、指定されたサブパスとモジュールタイプに対応する出力ファイルを解決する
-     *
-     * @param {FileBasedModuleType} wantModuleType - 要求されるモジュールタイプ ("ES" or "CJS")
-     * @param {string} subpath - サブパス (例: ".", "./utils")
-     * @returns {{ path: string, resolvedType: FileBasedModuleType }} 解決結果
-     * @throws {Error} - 定義が見つからない／不正な組み合わせの場合
-     */
-    resolveExport(wantModuleType:FileBasedModuleType, subpath: string="."):{ path: string, resolvedType: FileBasedModuleType } {
-        const packageJson=this.packageJson();
-        const exportsField = packageJson.exports as any;
-        const defaultType=this.moduleType();
-        const getExt=(s:string):".js"|".mjs"|".cjs"=>{
-            const m=/\.(m|c)js$/.exec(s.toLowerCase());
-            if(!m) return ".js";
-            return m[0] as ".mjs"|".cjs";
-        };
-        const typeByExt=(entry:string)=>{
-            const ext=getExt(entry);
-            return ext===".js"?defaultType:ext===".mjs"?"ES":"CJS";
-        };
-        // --- ① exports がある場合 ---
-        if (exportsField) {
-            const isRootConditional =
-                exportsField.import || exportsField.require || typeof exportsField === "string";
-            let entry = null;
-            // 直下に import/require がある (サブパス省略型)
-            if (isRootConditional && (subpath === "." || subpath === "")) {
-                entry = exportsField;
-            } else {
-                entry = exportsField[subpath];
-            }
-            if (!entry) throw new Error(`exports にサブパス ${subpath} が定義されていません`);
-            // 文字列のみの場合（例: "exports": "./dist/index.js"）
-            if (typeof entry === "string") {
-                const theType=typeByExt(entry);
-                if (wantModuleType==="ES"){
-                    if (theType==="ES") {
-                        return { path: entry, resolvedType: wantModuleType };
-                    } else {
-                        return { path: entry, resolvedType: "CJS" };                        
-                    }
-                } else {
-                    if (theType==="CJS") {
-                        return { path: entry, resolvedType: wantModuleType };
-                    } else {
-                        throw new Error(`CommonJS から ESM(${entry}) を参照できません`);
-                    }
-                }
-            }
-            // import / require で条件分岐している場合
-            const importEntry =
-                entry.import?.default || entry.import || entry["import"];
-            const requireEntry =
-                entry.require?.default || entry.require || entry["require"];
-            if (wantModuleType === "ES") {
-                if (importEntry) {
-                    return { path: importEntry, resolvedType: "ES" };
-                } else if (requireEntry) {
-                    // ESM要求 → CJSフォールバック可
-                    return { path: requireEntry, resolvedType: "CJS" };
-                } else {
-                    throw new Error(`サブパス ${subpath} に対応する esm/cjs 出力がありません`);
-                }
-            } else if (wantModuleType === "CJS") {
-                if (requireEntry) {
-                    return { path: requireEntry, resolvedType: "CJS" };
-                } else if (importEntry) {
-                    throw new Error(`CommonJS から ESM(${importEntry}) を参照できません`);
-                } else {
-                    throw new Error(`サブパス ${subpath} に require/import の定義がありません`);
-                }
-            } else {
-                throw new Error(`moduleType は "ES" または "CJS" で指定してください`);
-            }
-        }
-        else {// --- ② exports が無く main のみの場合 ---
-            if (subpath === "." || subpath === "") {
-                if (!packageJson.main) {
-                    throw new Error(`Cannot resolve ${subpath}. main is not defined`);
-                }
-                subpath=packageJson.main;
-            }
-            const theType=typeByExt(subpath);
-            if (wantModuleType === "ES") {
-                if (theType==="ES") {
-                    return { path: subpath, resolvedType: "ES" }; 
-                } else {
-                    return { path: subpath, resolvedType: "CJS" }; // フォールバック
-                }
-            } else if (wantModuleType === "CJS") {
-                if (theType==="CJS") {
-                    return { path: subpath, resolvedType: "CJS" };
-                }
-                throw new Error(`CommonJS から ESM(${module}) を参照できません`);
-            }
-            throw new Error(`Invalid moduleType ${wantModuleType}.`);
-        }
-    }
-    getEntry(wantModuleType:FileBasedModuleType, subpath: string="."):RawModuleEntry {
-        const {path, resolvedType}=this.resolveExport(wantModuleType, subpath);
-        return {
-            file: this.dir.rel(path),
-            type: resolvedType,
-        }
-    }
-    /*getEntry(path="."): SFile {
-        const p=this.packageJsonFile();
-        const o=this.packageJson();
-        let exp={} as {[key:string]:string};
-        if (typeof o.exports==="string") {
-            exp={".": o.exports};
-        } else if (typeof o.exports==="object") {
-            exp=o.exports;
-        } else if (o.main) {
-            exp={".": o.main};
+    getEntry(wantModuleType:ImportOrRequire, subpath: string="."):SFile {
+        if (wantModuleType==="require") {
+            return this.resolveRequire(subpath);
         } else {
-            exp={".": "./index.js"};
+            return this.resolveImport(subpath);
         }
-        if (exp[path]) return p.sibling(exp[path]);
-        return p.sibling(path);
-    }*/
+    }
     moduleType():FileBasedModuleType {
         const o=this.packageJson();
         return o.type==="module"? "ES":"CJS";
@@ -168,11 +52,14 @@ export class NodeModule {
     static moduleTypeOfFile(jsfile:SFile):FileBasedModuleType {
         if (jsfile.ext()===".mjs") return "ES";
         if (jsfile.ext()===".cjs") return "CJS";
-        const m=this.resolveFromParent(jsfile);
+        const m=NodeModule.closest(jsfile);
         if (!m) {return jsfile.ext()===".mjs"?"ES":"CJS";}
         return m.moduleType();
     }
     static resolveFromParent(base:SFile) {
+        return NodeModule.closest(base);
+    }
+    static closest(base:SFile) {
         const pkg=base.closest((f:SFile)=>f.rel("package.json").exists());
         if (!pkg) return undefined;
         return new NodeModule(pkg);
@@ -188,7 +75,7 @@ export class NodeModule {
                 }
             }
         }
-        let np=FS.getEnv("NODE_PATH");
+        let np=process.env.NODE_PATH;
         if (np) {
             const nps=np.split(":");
             for(let nnp of nps) {
@@ -201,7 +88,67 @@ export class NodeModule {
                 }
             }
         }
-        throw new Error(`${name} not found from ${base}`);
+        throw ex({type:"notfound", name, base},
+            `Module '${name}' not found from '${base}'`);
+    }
+
+    resolveImportRaw(path="."):rex.Exports.Output[0]|undefined{
+        const pkg=this.packageJson();
+        // returns undefined if pkg.exports is not present
+        // throws error if pkg.exports is present but pkg.exports[path] is not present
+        const r=rex.exports(pkg, path);
+        if (r) return r[0];
+    }
+    resolveRequireRaw(path="."):rex.Exports.Output[0]|undefined{
+        const pkg=this.packageJson();
+        // returns undefined if pkg.exports is not present
+        // throws error if pkg.exports is present but pkg.exports[path] is not present
+        const r=rex.exports(pkg, path, {require:true});
+        if (r) return r[0];
+    }
+    resolveLegacy(){
+        try {
+            const pkg=this.packageJson();
+            return rex.legacy(pkg,{browser:false,fields:["main"]});
+        } catch(e){
+        }
+    }
+    /*
+    if (exports あり) {
+        if (exports に一致) -> そのエントリへ
+        else -> resolution error
+    } else { // exports なし
+        if (サブパスあり) -> ファイルパスとして解決
+        else if (main あり) -> main へ
+        else -> index.js 等へ
+    }   */
+    resolveImport(subpath="."):SFile {
+        const e=this.resolveImportRaw(subpath)||this.resolveSubpath(subpath)||this.resolveLegacy()||subpath;
+        const f=pathFallback(this.dir.rel(e));
+        return f;
+    }
+    resolveRequire(subpath="."):SFile {
+        const c=this.resolveRequireRaw(subpath)||this.resolveSubpath(subpath)||this.resolveLegacy()||subpath;
+        const f=pathFallback(this.dir.rel(c));
+        return f;
+    }
+    resolveSubpath(subpath:string):string|null {
+        return (subpath==="."||subpath=="./")?null:subpath;
     }
 }
+export function pathFallback(p:SFile):SFile {
+  for (let attempt of [
+    ()=>p, 
+    ()=>!p.isDir() && p.sibling(p.name()+".js"),
+    ()=>p.isDir() && p.rel("index.js"),
+    ]){
+    try {
+        const f=attempt();
+        if (f&&f.exists()&&!f.isDir()) return f; 
+    } catch(_e){}
+  }
+  throw ex({type:"notfound", path:p.path()},
+    `Cannot fallback: '${p}' is not existent.`);
+}
+
 

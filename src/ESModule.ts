@@ -1,8 +1,6 @@
-//import { RawSourceMap, SourceMapConsumer } from "source-map";
-import {addURL, getAliases } from "./alias.js";
+import {Aliases } from "./alias.js";
 import { convert } from "./convImport.js";
-//type SFile=FS.SFile;
-import { Aliases, Module } from "./types";
+import { CompiledEvent, CompileStartEvent, ESModuleCompilerParam, IAliases, IModuleCache, Module } from "../types/index.js";
 import { CompiledESModule, ModuleEntry } from "./Module.js";
 import { CJSCompiler } from "./CommonJS.js";
 
@@ -40,34 +38,29 @@ class DependencyChecker {
         return undefined;
     }
 }
-type CompiledEvent={
-    module: Module,
-};
-type CompileStartEvent={
-    entry: ModuleEntry,
-    byOtherCompiler?: boolean,
-    isCJS?: boolean,
-};
 export class ESModuleCompiler {
     depChecker= new DependencyChecker();
     promiseCache=new Map<string, Promise<CompiledESModule>>();
     cjsCompiler?: CJSCompiler;
     constructor(
-        public aliases: Aliases,
+        public aliases: IAliases,
         public oncompilestart?:(e:CompileStartEvent)=>Promise<void>,
         public oncompiled?:(e:CompiledEvent)=>Promise<void>,
         public oncachehit?:(e:CompileStartEvent)=>Promise<void>){
     }
-    static create(context:Partial<ESModuleCompiler>={}):ESModuleCompiler {
-        return new ESModuleCompiler(context.aliases||getAliases(), context.oncompilestart, context.oncompiled, context.oncachehit);
+    static create(context:ESModuleCompilerParam):ESModuleCompiler {
+        return new ESModuleCompiler(context.aliases, context.oncompilestart, context.oncompiled, context.oncachehit);
     }
     getCJSCompiler():CJSCompiler {
-        this.cjsCompiler=this.cjsCompiler||new CJSCompiler();
+        this.cjsCompiler=this.cjsCompiler||new CJSCompiler(this.aliases);
         return this.cjsCompiler;
+    }
+    get cache():IModuleCache{
+        return this.aliases.cache;
     }
     async compile(entry:ModuleEntry):Promise<CompiledESModule> {
         const path=entry.file.path();
-        const incache=getAliases().getByPath(path);
+        const incache=this.cache.getByPath(path);
         if(incache instanceof CompiledESModule) {
             if (this.oncachehit) await this.oncachehit({entry, byOtherCompiler:true});
             return incache;    
@@ -89,48 +82,55 @@ export class ESModuleCompiler {
         if (!base) throw new Error(entry.file+" cannot create base.");
         const urlConverter={
             conv: async(path:string):Promise<string>=>{
-                const m=aliases.getByPath(path);
+                const m=this.cache.getByPath(path);
                 if (m?.url) {
-                    //const a=aliases.get(path)!;
                     deps.push(m);
                     return m.url;
                 }
                 if (path.match(/^https?:/)) {
                     return path;
                 }
-                const e=ModuleEntry.resolve("ES", path,base);
+                const e=await retry(()=>
+                  ModuleEntry.resolve
+                  ("import", path,base));
                 this.depChecker.add(entry.file.path(), e.file.path());
-                let c:Module,url:string;
-                if(e.moduleType()==="CJS") {
-                    if (this.oncompilestart) await this.oncompilestart({entry,isCJS:true});
-                    const cc=this.getCJSCompiler().compile(e);
-                    if (!cc.url) {
-                        url=addURL(cc);
-                    } else {
-                        url=cc.url;
-                    }
-                    c=cc;
-                }else{
-                    const ec=await this.compile(e);
-                    url=ec.url;
-                    c=ec;
-                }
-                deps.push(c);
-                return url;
+                const compiled: Module = await this.compileCJSFallback(e);
+                if (!compiled.url) throw new Error("URL is not set for "+e.file);
+                deps.push(compiled);
+                return compiled.url;
             },
             deps,
         };
-        const compiled=(await convert(entry, urlConverter));
+        const compiled=(await convert(this.aliases.scriptingContext, entry, urlConverter));
         if (this?.oncompiled) await this.oncompiled({module:compiled});
-        aliases.add(compiled);
+        this.cache.add(compiled);
         return compiled;
     }
-
+    private async compileCJSFallback(e: ModuleEntry):Promise<Module> {
+        if (e.moduleType() === "CJS") {
+            if (this.oncompilestart) await this.oncompilestart({ entry:e, isCJS: true });
+            try{
+                const cc = this.getCJSCompiler().compile(e);
+                if (!cc.url) {
+                    this.aliases.addURL(cc);
+                }
+                return cc;
+            }catch(_e) {
+                const err:any=_e;
+                if (err.type==="syntax") {
+                    console.warn(e.file+" fallbacked CJS to ESM. Cause: "+err);
+                } else {
+                    throw err;
+                }
+            }
+        }
+        return await this.compile(e);
+    }
 };
 
-export function traceInvalidImport(original:Error, start:CompiledESModule) {
+export function traceInvalidImport(cache: IModuleCache,original:Error, start:CompiledESModule) {
     let targetURL:string|null=null;
-    for (let e of getAliases()) {
+    for (let e of cache) {
         const url=e.url;
         if (!url) continue;
         const idx=original.message.indexOf(url);
@@ -156,4 +156,17 @@ export function traceInvalidImport(original:Error, start:CompiledESModule) {
     findFrom(start);
     if (candidates.length==0) return original;
     return new Error(original.message+"\n"+"Check these dependents:\n"+candidates.map((c)=>c.path).join("\n"));
+}
+async function retry<T>(f:()=>T){
+  try{
+    return f();
+  }catch(_e){
+    const e=_e as any;
+    if(e.retryPromise){
+      await e.retryPromise;
+      return f();
+    }else{
+      throw e;
+    }
+  }
 }
