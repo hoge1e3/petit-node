@@ -2,8 +2,9 @@
 
 import * as _FS from "@hoge1e3/fs2";
 import {EventHandler} from "@hoge1e3/events";
-import { Aliases } from "./alias.js";
-//export { addAlias, addAliases,  getAliases } from "./alias.js";
+import {convert} from "./convImport.js";
+import { initModuleGlobal, addAlias, addAliases,getAliases, addURL } from "./alias.js";
+export { addAlias, addAliases, getAliases } from "./alias.js";
 import { ESModuleCompiler, traceInvalidImport } from "./ESModule.js";
 export { ESModuleCompiler} from "./ESModule.js";
 import { NodeModule } from "./NodeModule.js";
@@ -13,34 +14,86 @@ import * as espree from 'espree';
 import * as chai from "chai";
 import assert from "@hoge1e3/assert";// Replace with assert polyfill, chai.assert is slow.
 import * as util from "@hoge1e3/util";
-import * as url from "@hoge1e3/url";
 import * as sfile from "@hoge1e3/sfile";
-import { AliasHash, BootOptions, Core, ESModuleCompilerHandlers, ESModuleCompilerParam, IModuleCache, ImportOrRequire, Module, ModuleValue, PNode, ScriptingContext, TFS } from "../types/";
-import {require} from "./CommonJS.js";
+import { Aliases, AliasHash, FileBasedModuleType, Module, ModuleValue, TFS } from "./types";
 export {require, CJSCompiler} from "./CommonJS.js";
+import {require, CJSCompiler} from "./CommonJS.js";
 import { CompiledCJS, CompiledESModule, ModuleEntry } from "./Module.js";
 export { CompiledESModule, ModuleEntry } from "./Module.js";
 import { jsToBlobURL } from "./scriptTag.js";
-import { JSZip,} from "@hoge1e3/fs2";
-import * as querystring from "querystring";
-import {createModulePolyfill} from "./polyfills/module.js";
-import * as vm from "./polyfills/vm.js";
-import * as constants from "./polyfills/constants.js";
-import * as stream from "./polyfills/stream.js";
-import { DeviceManager } from "petit-fs/src/vfsUtil.js";
+import { JSZip, PathUtil, zip } from "@hoge1e3/fs2";
 
+type Core={
+    FS:TFS,
+    os:any,
+    fs:any,
+    path:any,
+    process:any,
+    Buffer:BufferConstructor,
+};
+export let core:Core|null=null;//=setupCore();
 declare let globalThis:any;
 //declare let global:any;
 type SFile=sfile.SFile;
-const VERSION_SRC="__VER__2.0.0__SION__";
+const VERSION_SRC="__VER__1.5.4__SION__";
 export let version=VERSION_SRC.replace(/\_\_VER\_\_/,"").replace(/\_\_SION\_\_/,"");
 function setupCore(){
-    let res={
-        FS:_FS as TFS, 
-        ..._FS.nodePolyfill,
-    };
-    res.process.release.name="petit-node";
-    res.process.version=version;
+    let res;
+    if (typeof globalThis!=="undefined" && globalThis.__nwpolyfill) {
+        console.log("Using __nwpolyfill");
+        const {fs,path,os}=globalThis.__nwpolyfill;
+        const FS=new sfile.FileSystemFactory({fs, path, Buffer}) as unknown as TFS;
+        FS.getEnv=function getEnv(name?:string): any {
+            if (name == null) {
+                return process.env;
+            }
+            return process.env[name];
+        };
+        FS.setEnv=function setEnv(name:string, value:string){
+            process.env[name]=value;
+        };
+        FS.expand=function expand(str:string) {
+            return str.replace(/\$\{([a-zA-Z0-9_]+)\}/g, function (a, key) {
+                return FS.getEnv(key)||"";
+            });
+        }
+        FS.expandPath=function expandPath(path:string) {
+            path = FS.expand(path);
+            path = path.replace(/\/+/g, "/");
+            path = path.replace(/^[a-z][a-z]+:\//, (r)=>`${r}/`);
+            return path;
+        }
+        FS.resolve=function resolve(path:SFile|string, base?:SFile|string){ 
+            if (sfile.SFile.is(path)) return path;
+            path = FS.expandPath(path);
+            if (base && !PathUtil.isAbsolutePath(path)) {
+                if (typeof base==="string"){
+                    base = FS.expandPath(base);
+                    return FS.get(base).rel(path);    
+                } else {
+                    return base.rel(path);
+                }
+            }
+            return FS.get(path);
+        };
+        FS.PathUtil=PathUtil;
+        FS.zip=zip;
+        FS.SFile=sfile.SFile;
+        res={
+            FS,
+            os,
+            fs,
+            path,
+            process,
+            Buffer,
+        };
+    } else {
+        res={
+            FS:_FS as TFS, 
+            ..._FS.nodePolyfill,
+        };
+        res.process.release.name="petit-node";
+    }
     return res;
 }
 function mod2obj<T extends object>(o:T):T&{default:T}{
@@ -57,22 +110,14 @@ function mod2obj<T extends object>(o:T):T&{default:T}{
     }
 }
 
-//export let FS:TFS|null=null;//=(mod2obj(core.FS));
+export let FS:TFS|null=null;//=(mod2obj(core.FS));
+
 export const thisUrl=()=>(
-    new URL(/* webpackIgnore: true */import.meta.url));
-
+    new URL(import.meta.url));
+export let events=new EventHandler();
+export let on=events.on.bind(events);
 export const ESModule=CompiledESModule;
-
-
-
-function hackTimeouts(){
-    const g=globalThis as any;
-    for(let k of ["setTimeout","setInterval",
-    "clearTimeout","clearInterval",]){
-        g[k]=g[k].bind(g);
-    }
-}
-/*:(typeof import("./index.js"))&{import:typeof importModule}={
+let pNode:(typeof import("./index.js"))&{import:typeof importModule}={
     boot, importModule, import: importModule, init:boot, 
     createModuleURL, resolveEntry, 
     CompiledESModule, ModuleEntry, 
@@ -80,72 +125,48 @@ function hackTimeouts(){
     ESModuleCompiler, CJSCompiler,
     convertStack, loadedModules, urlToFile, events, on, urlToPath, 
     thisUrl, FS:null as (null|TFS), require,core:null as (null|Core),version,
-    file, getFS, getNodeLikeFs, getCore, getDeviceManager,
+    file, getFS, getCore,
     addPrecompiledCJSModule,
     addPrecompiledESModule,
     default:{} as any,
-};*/
-const invalidSpec=()=>new Error("Invalid argument: either (file) or (str,file)");
-type ErrorEvent={filename:string,colno:number,lineno:number,error:Error,message:string};
-
-export let events=new EventHandler();
-export let on=events.on.bind(events);
-function createScriptingContext(g:any):ScriptingContext {
-    return {
-        Blob: g.Blob,
-        URL: g.URL,
-        Function: g.Function,
-        eval: (s)=>g.eval(s),
-        importModule: new g.Function("url","return import(/* webpackIgnore: true */url);"),  
-    };
+};
+export function file(path:string):SFile{
+    return getFS().get(path);
 }
-export function createInstance(_globalThis:any):PNode {
-const scriptingContext:ScriptingContext=createScriptingContext(_globalThis);
-return {
-aliases: new Aliases(scriptingContext),
-events, on,
-core:null as Core|null,
-version,
-file(path:string):SFile{
-    return this.getFS().get(path);
-},
-getFS(): TFS { 
-    if (!this.FS) throw new Error("FS is not set");
-    return this.FS; 
-},
-getNodeLikeFs(): typeof import("node:fs") {
-    return this.getCore()?.fs;
-},
-getDeviceManager():DeviceManager {
-    return this.getCore()?.dev;
-},
-getCore(){ return this.core; },
-builtInAliases:{} as {[key:string]:ModuleValue},
-dupNodePrefix(keys:string[]){
+export function getFS(): TFS { 
+    if (!FS) throw new Error("FS is not set");
+    return FS; 
+}
+export function getCore(){ return core; }
+export default pNode;
+pNode.default=pNode;
+let builtInAliases:{[key:string]:ModuleValue};
+function dupNodePrefix(keys:string[]){
     for (let k of keys) {
-        this.builtInAliases[`node:${k}`]=this.builtInAliases[k];
+        builtInAliases[`node:${k}`]=builtInAliases[k];
     }
-},
-FS:undefined as TFS|undefined,
-async boot(options:BootOptions={
+}
+type Initializer=(p:{FS:typeof FS, pNode: typeof pNode })=>Promise<any>;
+
+type BootOptions={
+    aliases: AliasHash|undefined,
+    init: Initializer|undefined,
+    core: Core|undefined,
+};
+export async function boot(options:BootOptions={
     aliases:undefined, init: undefined, core: undefined,
-    main: undefined, fstab: undefined,
 }) {
-    await this.aliases.initModuleGlobal();
-    const {aliases, init, fstab, main}=options;
-    const core=options.core||setupCore();
-    const FS=mod2obj(core.FS);
-    this.FS=FS;
-    this.core=core;
-    const builtInAliases:{[key:string]:ModuleValue}={
-        //--
-        //"petit-node": pNode,
-        //--
-        "pnode:main": this,
-        "pnode:core": core,
-        "pnode:FS": FS,
-        "pnode:dev": core.dev,
-        "pnode:sfile": sfile,
+    await initModuleGlobal();
+    const {aliases, init}=options;
+    core=options.core||setupCore();
+    FS=mod2obj(core.FS);
+    pNode.FS=FS;
+    pNode.core=core;
+    builtInAliases={
+        "petit-node": pNode,
+        "@hoge1e3/fs": FS,
+        "@hoge1e3/fs2": FS,
+        "@hoge1e3/sfile": sfile,
         fs: genfs(core.fs),
         os: core.os,
         path: core.path,
@@ -153,17 +174,11 @@ async boot(options:BootOptions={
         buffer: core.Buffer,
         assert,
         util,
-        url,
-        // polyfills
-        querystring,vm,constants,stream,
-        module: createModulePolyfill(this.aliases, FS),
-        "pnode:chai": chai,
-        "pnode:jszip": JSZip,
-        "pnode:espree": espree,
+        chai,
+        "jszip": JSZip,
+        espree,
     };
-    this.builtInAliases=builtInAliases;
-    this.dupNodePrefix(["fs","os","path","process","buffer","assert","util","url",
-        "querystring","vm","constants","stream","module"]);
+    dupNodePrefix(["fs","os","path","process","assert","util"]);
     /*
     It seems not to be used... Especially in nw.js (globalThis.process===global.process)
     const extendEnv=(p:any)=>{
@@ -172,221 +187,143 @@ async boot(options:BootOptions={
         return r;
     };*/
     globalThis.process=globalThis.process||(core.process);
-    globalThis.global=globalThis;
     globalThis.Buffer=globalThis.Buffer||core.Buffer;
-    hackTimeouts();
-    try{
-       globalThis.addEventListener("error",this.errorHandler.bind(this));
-       globalThis.addEventListener("unhandledrejection",this.errorHandler.bind(this));
-    } catch(e){
-        console.error(e);
-    }
+
     for (let k in builtInAliases) {
-        this.aliases.addAlias(k, builtInAliases[k] as ModuleValue);
+        addAlias(k, builtInAliases[k] as ModuleValue);
     }
     if (aliases) {
-        this.aliases.addAliases(aliases);
-    }
-    if (fstab) {
-        await this.getDeviceManager().loadFstab(fstab);
+        addAliases(aliases);
     }
     if (init) {
-        let path=await init({FS, pNode:this});
+        let path=await init({FS, pNode});
         if (!path) return;
         let file=(typeof path=="string"? FS.get(path): path as SFile);
-        return await this.importModule(file);            
-    } else if (main) {
-        let file=(typeof main=="string"? FS.get(main): main as SFile);
-        return await this.importModule(file);       
+        return await importModule(file);            
     }
-},
-init(options:BootOptions={
-    aliases:undefined, init: undefined, core: undefined,
-    main: undefined, fstab: undefined,
-}){return this.boot(options);},
-//resolveEntry(wantModuleType: ImportOrRequire, path: string|SFile):ModuleEntry;
-//resolveEntry(wantModuleType: ImportOrRequire, path: string, base: string|SFile):ModuleEntry;
-resolveEntry(wantModuleType: ImportOrRequire, path: string|SFile ,base?:string|SFile):ModuleEntry{
+}
+export const init=boot;
+const invalidSpec=()=>new Error("Invalid argument: either (file) or (str,file)");
+export function resolveEntry(wantModuleType: FileBasedModuleType, path: string|SFile):ModuleEntry;
+export function resolveEntry(wantModuleType: FileBasedModuleType, path: string, base: string|SFile):ModuleEntry;
+export function resolveEntry(wantModuleType: FileBasedModuleType, path: string|SFile ,base?:string|SFile):ModuleEntry{
     let mod:ModuleEntry;
     if(base){
         if (typeof path!=="string") throw invalidSpec();
         mod=ModuleEntry.resolve(
             wantModuleType,
             path,
-            typeof base==="string"?this.getFS().get(base):base
+            typeof base==="string"?getFS().get(base):base
         );
     } else {
-        if (typeof path==="string") path=this.getFS().get(path);// throw invalidSpec();
+        if (typeof path==="string") path=getFS().get(path);// throw invalidSpec();
         if(path.isDir()){
             mod=ModuleEntry.fromNodeModule(wantModuleType, new NodeModule(path));
         }else{
-            mod=ModuleEntry.fromFile(path);
+            mod=ModuleEntry.fromFile(wantModuleType,path);
         }
     }
     return mod;
-},
-//importModule(path: string|SFile):Promise<ModuleValue>;
-//importModule(path: string, base: string|SFile):Promise<ModuleValue>;
-async importModule(path: string|SFile, base?:string|SFile):Promise<ModuleValue>{
+}
+export async function importModule(path: string|SFile):Promise<ModuleValue>;
+export async function importModule(path: string, base: string|SFile):Promise<ModuleValue>;
+export async function importModule(path: string|SFile, base?:string|SFile):Promise<ModuleValue>{
     let ent;
-    const aliases=this.aliases;
+    const aliases=getAliases();
     const _path=typeof path==="string"?path:path.path();
-    const incache=aliases.cache.getByPath(_path);
+    const incache=aliases.getByPath(_path);
     if (incache?.value) {
         return incache.value;
     } else if (base) {
         if (typeof path!=="string") throw invalidSpec();
-        ent=this.resolveEntry("import",path,base);
+        ent=resolveEntry("ES",path,base);
     } else {
-        ent=this.resolveEntry("import", path);
+        //if (typeof path==="string") throw invalidSpec();
+        ent=resolveEntry("ES", path);
     }
-    const compiler=ESModuleCompiler.create({
-        aliases: this.aliases,
-    });
+    const compiler=ESModuleCompiler.create();
     const compiled=await compiler.compile(ent);
     let u=compiled.url;
     try {
-        return await this.aliases.scriptingContext.importModule(/* webpackIgnore: true */u);
+        return await import(/* webpackIgnore: true */u);
     } catch(err) {
         const e=err as unknown as Error;
         if (e.message.match(/blob:/)) {
-            throw traceInvalidImport(this.aliases.cache, e, compiled);
+            throw traceInvalidImport(e, compiled);
         }
         throw err;
     }
-},
-import(url:string){return this.importModule(url);},
-async createModuleURL(f:SFile):Promise<string>{
-    const compiler=ESModuleCompiler.create({
-        aliases: this.aliases,
-    });
-    return (await compiler.compile(ModuleEntry.fromFile(f))).url;
-},
-createESModuleCompiler(handler: ESModuleCompilerHandlers={}):ESModuleCompiler{
-    return ESModuleCompiler.create({
-        ...handler,
-        aliases: this.aliases,
-    });
-},
-errorHandler(ee:ErrorEvent){
-    this.convertStack(ee.error);
+}
+export async function createModuleURL(f:SFile):Promise<string>{
+    const compiler=ESModuleCompiler.create();
+    return (await compiler.compile(ModuleEntry.fromFile("ES",f))).url;
+}
+function isError(e:any):e is Error{
+    return e&&typeof e.stack==="string";
+}
+type ErrorEvent={filename:string,colno:number,lineno:number,error:Error,message:string};
+function errorHandler(ee:ErrorEvent){
+    convertStack(ee.error);
     events.fire("error",{
-        filename:this.urlToPath(ee.filename),
+        filename:urlToPath(ee.filename),
         colno:ee.colno, lineno:ee.lineno,
-        error: ee.error, message: this.convertStack(ee.message),
+        error: ee.error, message: convertStack(ee.message),
     });
-},
-convertStack<T extends string|Error>(stack:T):T {
+}
+export function convertStack<T extends string|Error>(stack:T):T {
     return stack as T;
-},
-/*
+}
 try{
     globalThis.convert=convert;
     globalThis.addEventListener("error",errorHandler);
 } catch(e){
 }
-*/
 
-loadedModules():IModuleCache {
-    return this.aliases.cache;
-},
-urlToPath(url:string):string {
-    let ent=this.loadedModules().getByURL(url, true);
+export function loadedModules() {
+    return getAliases();
+}
+export function urlToPath(url:string):string {
+    let ent=loadedModules().getByURL(url, true);
     if (!ent) return url;
     return ent.path;
-},
-urlToFile(url:string):SFile {
-    let mod=this.loadedModules().getByURL(url, true);
+}
+export function urlToFile(url:string):SFile {
+    let mod=loadedModules().getByURL(url, true);
     if (!mod) throw new Error(`${url} is not loaded.`);
     if (mod instanceof CompiledESModule || mod instanceof CompiledCJS) {
         return mod.entry.file;
     }
     throw new Error(`${url}(${mod.path}) is not associated to a file.`);
-},
-addPrecompiledESModule(path:string, timestamp:number, compiledCode: string, dependencies:Module[]):CompiledESModule {
-    const file=this.getFS().get(path);
-    const aliases=this.aliases.cache;
-    const entry=ModuleEntry.fromFile(file, timestamp);
+}
+export function addPrecompiledESModule(path:string, timestamp:number, compiledCode: string, dependencies:Module[]):CompiledESModule {
+    const file=getFS().get(path);
+    const aliases=getAliases();
+    const entry=ModuleEntry.fromFile("ES", file, timestamp);
     const deps=dependencies;
-    const url=jsToBlobURL(this.aliases.scriptingContext, compiledCode);
-    const res=new CompiledESModule(
-        this.aliases.scriptingContext, entry, deps, url, compiledCode);
+    const url=jsToBlobURL(compiledCode);
+    const res=new CompiledESModule(entry, deps, url, compiledCode);
     aliases.add(res);
     return res;
-},
-addPrecompiledCJSModule(path:string, timestamp:number, compiledCode:Function, dependencyMap:Map<string,Module>):CompiledCJS {
-    const file=this.getFS().get(path);
-    const cache=this.aliases.cache;
+}
+export function addPrecompiledCJSModule(path:string, timestamp:number, compiledCode:Function, dependencies:Module[]):CompiledCJS {
+    const file=getFS().get(path);
+    const aliases=getAliases();
     const base=file.up()!;
     const require=(path:string)=>{
-        const builtin=cache.getByPath(path);
+        const builtin=aliases.getByPath(path);
         if (builtin?.value) return builtin.value;
-        const entry=ModuleEntry.resolve("require",path, base);
-        const module=cache.getByPath(entry.file.path());
+        const entry=ModuleEntry.resolve("CJS",path, base);
+        const module=aliases.getByPath(entry.file.path());
         if (module?.value) return module.value;
         throw new Error(`Cannot resolve ${path}`);
     };
     const exports={} as ModuleValue, module={exports}, filename=file.path(), dirname=base.path();
     const args=[require, exports, module, filename, dirname ];
     const value=compiledCode(...args);
-    const entry=ModuleEntry.fromFile(file,timestamp);
-    const res=new CompiledCJS(
-        this.aliases.scriptingContext,entry, dependencyMap, value, "/*preCompiledModule*/"+compiledCode);
-    cache.add(res);
-    this.aliases.addURL(res);
+    const entry=ModuleEntry.fromFile("CJS",file,timestamp);
+    const deps=dependencies;
+    const res=new CompiledCJS(entry, deps, value, "/*preCompiledModule*/"+compiledCode);
+    aliases.add(res);
+    addURL(res);
     return res
-},
-getAliases(){return this.aliases.cache;},
-addAliases(p:AliasHash){return this.aliases.addAliases(p);},
-addAlias(path:string, value:ModuleValue, properties?:string[]) {
-    return this.aliases.addAlias(path, value, properties);
-},
-require(porf:string|SFile, base?:SFile|string):ModuleValue{
-    if(typeof porf==="string") {
-        switch (typeof base) {
-            case "undefined":
-            return require(this.aliases, porf);
-            case "string":
-            return require(this.aliases, porf, base);
-            default://SFile
-            return require(this.aliases, porf, base);
-        }
-    }
-    return require(this.aliases, porf);
-},
-clone(_globalThis:any):PNode {
-    return createInstance(_globalThis);
-},
-default:undefined as (PNode|undefined),
-};//of return
-}// of createInstance
-
-const pNode=createInstance(globalThis);
-export default pNode;
-pNode.default=pNode;
-
-
-export const FS=pNode.FS;
-export const addAlias=pNode.addAlias;
-export const addAliases=pNode.addAliases;
-export const addPrecompiledCJSModule=pNode.addPrecompiledCJSModule.bind(pNode);
-export const addPrecompiledESModule=pNode.addPrecompiledESModule.bind(pNode);
-export const boot=pNode.boot.bind(pNode);
-export const convertStack=pNode.convertStack.bind(pNode);
-export const core=pNode.core;
-export const createModuleURL=pNode.createModuleURL.bind(pNode);
-//export const events=pNode.events;
-export const file=pNode.file.bind(pNode);
-export const getAliases=pNode.getAliases;
-export const getCore=pNode.getCore.bind(pNode);
-export const getDeviceManager=pNode.getDeviceManager.bind(pNode);
-export const getFS=pNode.getFS.bind(pNode);
-export const getNodeLikeFs=pNode.getNodeLikeFs.bind(pNode);
-export const importModule=pNode.importModule.bind(pNode);
-export const init=pNode.init.bind(pNode);
-export const loadedModules=pNode.loadedModules.bind(pNode);
-//export const on=pNode.on;
-//export const require=pNode.require;
-export const resolveEntry=pNode.resolveEntry.bind(pNode);
-export const urlToFile=pNode.urlToFile.bind(pNode);
-export const urlToPath=pNode.urlToPath.bind(pNode);
+}

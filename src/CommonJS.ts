@@ -1,14 +1,11 @@
 import { SFile } from "@hoge1e3/sfile";
-import { IAliases, IModuleCache, Module, ModuleValue, ScriptingContext } from "../types";
+import { IModuleCache, Module, ModuleValue } from "./types";
 import * as FS from "@hoge1e3/fs2";
-import { Aliases } from "./alias.js";
+import { getAliases } from "./alias.js";
 import { CompiledCJS, ModuleEntry } from "./Module.js";
-import {ex} from "./errors.js";
-type RequireFunc=((path:string)=>ModuleValue)&{
-    deps:Map<string,Module>,
-    freezeDeps():void,
-    resolve(path:string):string,
-};
+
+type RequireFunc=((path:string)=>ModuleValue)&{deps:Set<Module>};
+//type Module={exports:ModuleValue};
 function wrapException(e:Error, pos:string) {
     const res=new Error("At "+pos+"\n"+e.message);
     res.stack=e.stack;
@@ -16,47 +13,34 @@ function wrapException(e:Error, pos:string) {
     return res;
 }
 export class CJSCompiler {
-    static create(aliases: IAliases): CJSCompiler {
-        return new CJSCompiler(aliases);
+    static create(): CJSCompiler {
+        return new CJSCompiler();
     }
-    aliases: IAliases;
-    get cache():IModuleCache{
-        return this.aliases.cache;
-    }
-    get ctx():ScriptingContext {
-        return this.aliases.scriptingContext;
-    }
+    //deps=new Set<CompiledCJS>();
+    //file:SFile;
+    //base:SFile;
+    cache: IModuleCache;
     constructor(
-        aliases: IAliases
     ) {
-        this.aliases=aliases;
+        //this.file=entry.file;
+        //this.base=entry.file.up()!;
+        this.cache=getAliases();
+        //if (!this.base) throw new Error(this.file+" cannot create base.");
     }
     requireFunc(base:SFile):RequireFunc {
-        const deps=new Map<string, Module>();
-        let depsFrozen=false;
+        const deps=new Set<Module>();
         return Object.assign((path:string)=>{
             const module=this.cache.getByPath(path);// [A]
             if (module) {
                 if (!module.value) throw new Error(`Cannot import ${path}(seems to be ESM) from ${base}(CJS)`);
-                if (!depsFrozen) deps.set(path, module);
+                deps.add(module);
                 return module.value;
             }
-            const e=ModuleEntry.resolve("require", path,base);
+            const e=ModuleEntry.resolve("CJS", path,base);
             const c=this.compile(e);
-            //console.log("deps set",path,depsFrozen);
-            if (!depsFrozen) deps.set(path, c);
+            deps.add(c);
             return c.value;
-        }, {
-            deps,
-            freezeDeps(){
-                //console.log("Deps frozen ",base.path());
-                depsFrozen=true;
-            },
-            resolve(path:string):string{
-                const e=ModuleEntry.resolve("require", path,base);
-                return e.file.path();
-            }
-        });
+        }, {deps});
     }
     requireArguments(file:SFile) {
         const base=file.up()!;
@@ -81,24 +65,13 @@ export class CJSCompiler {
             return c;
         }
         const sourceURL=`//# sourceURL=file://${file.path()}`;
-        const funcSrc=(
-            entry.file.endsWith(".json") ? 
-            `module.exports=${entry.sourceCode};`:
-            entry.sourceCode)+"\n"+sourceURL;
-        const func=new this.ctx.Function("require", "exports","module","__filename", "__dirname", funcSrc);
+        const funcSrc=entry.sourceCode+"\n"+sourceURL;
+        const func=new Function("require", "exports","module","__filename", "__dirname", funcSrc);
         const args=this.requireArguments(file);
+        func(...args);
         const module=args[2];
-        const deps=args[0].deps;
-        const compiled=new CompiledCJS(
-            this.ctx, entry, deps, module.exports, funcSrc);
+        const compiled=new CompiledCJS( entry, [...args[0].deps], module.exports, funcSrc);
         this.cache.add(compiled);
-        try {
-            func(...args);
-        }catch(e) {
-            throw ex("syntax", e as Error); 
-        }
-        args[0].freezeDeps();
-        compiled.value=(module.exports);
         return compiled;
 
       } catch(e){
@@ -108,11 +81,11 @@ export class CJSCompiler {
     
 }
 
-export function require(aliases:IAliases,path:string):ModuleValue;
-export function require(aliases:IAliases,file:SFile):ModuleValue;
-export function require(aliases:IAliases,path:string, base:SFile):ModuleValue;
-export function require(aliases:IAliases,path:string, base:string):ModuleValue;
-export function require(aliases:IAliases,porf:string|SFile, base?:SFile|string):ModuleValue {
+export function require(path:string):ModuleValue;
+export function require(file:SFile):ModuleValue;
+export function require(path:string, base:SFile):ModuleValue;
+export function require(path:string, base:string):ModuleValue;
+export function require(porf:string|SFile, base?:SFile|string):ModuleValue {
     const path=(typeof porf==="string"? porf: porf.path());
     let fbase:SFile;
     if (!base) {
@@ -128,6 +101,5 @@ export function require(aliases:IAliases,porf:string|SFile, base?:SFile|string):
     } else {
         fbase=base;
     }
-    const entry = ModuleEntry.resolve("require", path, fbase);
-    return new CJSCompiler(aliases).compile(entry).value;
+    return new CJSCompiler().compile(ModuleEntry.resolve("CJS", path,fbase)).value;
 }
