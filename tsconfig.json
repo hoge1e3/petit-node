@@ -14,9 +14,10 @@
       "strict": true,
       "outDir":"./js",
       "allowSyntheticDefaultImports":true,
-      
+      "declaration": true,
+
       "incremental": true,
       "tsBuildInfoFile": "./.tsbuildinfo",
     },
-    "include": ["src"]
+    "include": ["src", "types/index.d.ts"]
   }
