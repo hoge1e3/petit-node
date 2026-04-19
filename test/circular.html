@@ -1,0 +1,38 @@
+<!--script src="../dist/index.js"></script>
+<script src="setup.js"></script-->
+<script type="module">
+import {main, prt, sleep, checkPrt} from "./setup.js";
+import pNode from "../dist/index.js";
+globalThis.prt=prt;
+const fixture={
+    "package.json":`{"type":"module"}`,
+    "main.js": `
+import {bar} from "./bar.js";
+// Caveat: immediate call may fail. since 'bar' in foo.js will bind lately.
+setTimeout(()=>prt(bar(20)) ,100);
+`,
+    "foo.js": `
+import {bar} from "./bar.js";/* Converted into source with dynamic import & late binding. */
+export function foo(x) {
+    return bar(x/2);
+}
+`,
+    "bar.js": `
+import {foo} from "./foo.js";
+export function bar(x) {
+    if (x%2==1) {
+        return x;
+    } else {
+        return foo(x); 
+    }
+}
+`,
+
+};
+main(fixture);
+await sleep();
+const home=pNode.FS.get("/node/");
+await pNode.importModule(home.rel("main.js"));
+await sleep();
+checkPrt(`5`);
+</script>

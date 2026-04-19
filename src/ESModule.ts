@@ -3,10 +3,11 @@ import { convert } from "./convImport.js";
 import { CompiledEvent, CompileStartEvent, ESModuleCompilerParam, IAliases, IModuleCache, Module } from "../types/index.js";
 import { CompiledESModule, ModuleEntry } from "./Module.js";
 import { CJSCompiler } from "./CommonJS.js";
+import { genCircularResolver } from "./ESCircular.js";
 
 class DependencyChecker {
     private dependencies: Map<string, Set<string>> = new Map();
-    add(dependent: string, dependency: string): void {
+    add(dependent: string, dependency: string): boolean {
         if (dependent === dependency) {
             throw new Error(`Self-dependency detected: ${dependent} depends on itself.`);
         }
@@ -18,9 +19,11 @@ class DependencyChecker {
         }
         const circularPath = this.hasCircularDependency([dependent ,dependency]);
         if (circularPath) {
-            throw new Error(`Circular dependency detected: ${circularPath.join(" -> ")}`);
+            return true;
+            //throw new Error(`Circular dependency detected: ${circularPath.join(" -> ")}`);
         }
         this.dependencies.get(dependent)!.add(dependency);
+        return false;
     }
     private hasCircularDependency(path: string[]): string[] | undefined {
         const start: string=path[0], current: string=path[path.length - 1];
@@ -93,7 +96,10 @@ export class ESModuleCompiler {
                 const e=await retry(()=>
                   ModuleEntry.resolve
                   ("import", path,base));
-                this.depChecker.add(entry.file.path(), e.file.path());
+                const circular=this.depChecker.add(entry.file.path(), e.file.path());
+                if (circular) {
+                    return await genCircularResolver(this.aliases,e.file);
+                }
                 const compiled: Module = await this.compileCJSFallback(e);
                 if (!compiled.url) throw new Error("URL is not set for "+e.file);
                 deps.push(compiled);
