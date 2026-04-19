@@ -13,6 +13,7 @@
       // 厳密モードとして設定
       "strict": true,
       "outDir":"./js",
+      "rootDir": "./src",
       "allowSyntheticDefaultImports":true,
       "declaration": true,
 
