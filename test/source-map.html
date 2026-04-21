@@ -1,0 +1,39 @@
+<!--script src="../dist/index.js"></script>
+<script src="setup.js"></script-->
+<script src="https://cdn.jsdelivr.net/npm/stacktrace-js/dist/stacktrace.js"></script>
+<!--script src="https://cdn.jsdelivr.net/npm/stacktrace-gps/dist/stacktrace-gps.js"></script-->
+<script type="module">
+import pNode from "../dist/index.js";
+import {main,prt,sleep,checkPrt} from "./setup.js";
+globalThis.prt=prt;
+const fixture={
+    "package.json":`{"type":"module"}`,
+    "main.js": `
+import {main} from "./srcm-test.js";
+try {
+    main();
+} catch(e) {
+    console.error(e);
+    prt("Original: "+e.stack);
+    globalThis.lastError=e;
+    const trace=await StackTrace.fromError(e);
+    console.log(trace);
+    prt("Source-mapped:");
+    for (let f of trace) {
+        prt(f.fileName+":"+f.lineNumber+":"+f.columnNumber)
+    }
+    /*const gps= new StackTraceGPS();
+    for (let f of trace) {
+        const loc=await gps.getMappedLocation(f);
+        console.log(loc);
+    }*/
+}
+`,
+  "srcm-test.js": "export function main() {\n    a.b.c;\n}\n//# sourceMappingURL=srcm-test.js.map",
+  "srcm-test.js.map": "{\"version\":3,\"file\":\"srcm-test.js\",\"sourceRoot\":\"\",\"sources\":[\"../src/srcm-test.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,UAAU,IAAI;IAClB,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;AACR,CAAC\"}",
+  "srcm-test.d.ts": "export declare function main(): void;\n",
+};
+main(fixture,undefined,{PNODE_SOURCE_MAP:1});
+await sleep();
+checkPrt(/srcm-test\.ts/);
+</script>

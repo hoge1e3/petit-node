@@ -92,6 +92,7 @@ export let events=new EventHandler();
 export let on=events.on.bind(events);
 function createScriptingContext(g:any):ScriptingContext {
     return {
+        process: g.process,
         Blob: g.Blob,
         URL: g.URL,
         Function: g.Function,
@@ -134,6 +135,7 @@ async boot(options:BootOptions={
     await this.aliases.initModuleGlobal();
     const {aliases, init, fstab, main}=options;
     const core=options.core||setupCore();
+    scriptingContext.process=core.process;
     const FS=mod2obj(core.FS);
     this.FS=FS;
     this.core=core;

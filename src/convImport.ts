@@ -21,6 +21,7 @@ function spliceStr(str:string,
   const lastPart = str.slice(end);
   return firstPart + (replacement || '') + lastPart;
 }
+const sourceMapPat=/\/\/# sourceMappingURL=([^\r\n]+)\s*$/;
 export async function convert(sctx:ScriptingContext, entry: ModuleEntry,urlConverter:URLConverter): Promise<CompiledESModule> {
   const file=entry.file;
   try {
@@ -61,8 +62,23 @@ export async function convert(sctx:ScriptingContext, entry: ModuleEntry,urlConve
         conv2=spliceStr(conv2,range[0],range[1],to);
       }
     });
-    const sourceURL=`//# sourceURL=file://${file.path()}`;
-    const gensrc=conv2+"\n"+sourceURL+"\n";
+    let sourceMapInjected=false;
+    if (sctx.process?.env?.PNODE_SOURCE_MAP) {
+      conv2=conv2.replace(sourceMapPat,(_,mpath)=>{
+        const srcmf=file.sibling(mpath);
+        if (srcmf.exists()) {
+          sourceMapInjected=true;
+          const cont=srcmf.getContent();
+          cont.contentType="application/json";
+          return `//# sourceMappingURL=${cont.toURL()}\n`;
+        } 
+        return `//# sourceMappingURL=${mpath}\n`;
+      })
+    }
+    if (!sourceMapInjected) {
+      conv2+=`\n//# sourceURL=file://${file.path()}\n`;
+    }
+    const gensrc=conv2;
     const url= sctx.URL.createObjectURL(new sctx.Blob([gensrc],{type:"text/javascript"}));
     return new CompiledESModule(
       sctx,

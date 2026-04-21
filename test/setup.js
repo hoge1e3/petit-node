@@ -16,7 +16,7 @@ export function loadFixture(dir,fixture) {
     }
 }
 export const sleep=(t=1000)=>new Promise(s=>setTimeout(s,t));
-export async function main(fixture,aliases){
+export async function main(fixture,aliases,env){
     checkModuleExports(pNode);
     return await pNode.boot({
         async init({FS}){
@@ -25,6 +25,9 @@ export async function main(fixture,aliases){
             loadFixture(node, fixture);
             if (aliases) {
                 pNode.addAliases(aliases);
+            }
+            if (env) {
+                Object.assign(process.env,env);
             }
             return node.rel("main.js");
         },
@@ -55,7 +58,7 @@ export function checkPrt(expected) {
     } else if (typeof expected==="function") {
         test=expected;
     } else {
-        test=(actual)=>test.exec(actual);
+        test=(actual)=>expected.exec(actual);
     }
     if (test(actual)){
         prt("Test passed");

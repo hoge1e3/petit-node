@@ -213,6 +213,7 @@ export interface PNode {
   default: PNode | undefined;
 }
 export type ScriptingContext={
+    process?: typeof import("node:process"),
     Blob: typeof Blob,
     URL: typeof URL,
     importModule: (url:string)=>Promise<any>,
