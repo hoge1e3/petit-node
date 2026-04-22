@@ -5,24 +5,67 @@
 <script type="module">
 import pNode from "../dist/index.js";
 import {main,prt,sleep,checkPrt} from "./setup.js";
+//const path=await pNode.importModule("node:path");
 globalThis.prt=prt;
+globalThis.convStack=async (e)=>{
+    const trace_offline=await StackTrace.fromError(e,{offline:true});
+    const trace=await StackTrace.fromError(e,{
+        sourceCache:new Proxy({},{
+            get(target,key){
+                if (key==="toString"||key==="then"||typeof key==="symbol") return undefined;
+                console.log("sourceCache",key);
+                key=key.replace(/^file:\/\//,"");
+                return pNode.file(key).text();
+            }
+        })
+    });
+    console.log(trace,trace_offline);
+    prt("Source-mapped:");
+    let i=0;
+    let traceStr=e.toString();
+    for (let f of trace) {
+        const offline=trace_offline[i];i++;
+        if (offline.fileName.match(/^file:/) && !f.fileName.match(/^file:/)) {
+            const off=offline.fileName.replace(/^file:\/\//,"");
+            f.fileName="file://"+path.join(path.dirname(off), f.fileName);
+        } else if (offline.fileName.match(/^blob:/) && !f.fileName.match(/^file:/)) {
+            const base=pNode.urlToPath(offline.fileName);
+            //console.log("join", base, f.fileName);
+            f.fileName="file://"+path.join(path.dirname(base), f.fileName);
+        }
+        traceStr+="\n"+(f.functionName ?
+            `at ${f.functionName} (${f.fileName}:${f.lineNumber}:${f.columnNumber})`:
+            `at ${f.fileName}:${f.lineNumber}:${f.columnNumber}`
+        );
+        //prt(f.fileName+":"+f.lineNumber+":"+f.columnNumber)
+    }
+    e.stack=traceStr;
+    prt(e.stack);
+    console.error(e);
+};
 const fixture={
     "package.json":`{"type":"module"}`,
+    "conv.js":`
+
+`,
     "main.js": `
 import {main} from "./srcm-test.js";
+import * as path from "node:path";
+globalThis.path=path;
 try {
     main();
 } catch(e) {
     console.error(e);
     prt("Original: "+e.stack);
     globalThis.lastError=e;
-    const trace=await StackTrace.fromError(e);
+    await convStack(e);
+    /*const trace=await StackTrace.fromError(e);
     console.log(trace);
     prt("Source-mapped:");
     for (let f of trace) {
         prt(f.fileName+":"+f.lineNumber+":"+f.columnNumber)
     }
-    /*const gps= new StackTraceGPS();
+    const gps= new StackTraceGPS();
     for (let f of trace) {
         const loc=await gps.getMappedLocation(f);
         console.log(loc);
@@ -33,7 +76,7 @@ try {
   "srcm-test.js.map": "{\"version\":3,\"file\":\"srcm-test.js\",\"sourceRoot\":\"\",\"sources\":[\"../src/srcm-test.ts\"],\"names\":[],\"mappings\":\"AACA,MAAM,UAAU,IAAI;IAClB,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC;AACR,CAAC\"}",
   "srcm-test.d.ts": "export declare function main(): void;\n",
 };
-main(fixture,undefined,{PNODE_SOURCE_MAP:1});
+main(fixture,undefined,{_PNODE_SOURCE_MAP:1});
 await sleep();
 checkPrt(/srcm-test\.ts/);
 </script>
