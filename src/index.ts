@@ -377,6 +377,7 @@ export const boot=pNode.boot.bind(pNode);
 export const convertStack=pNode.convertStack.bind(pNode);
 export const core=pNode.core;
 export const createModuleURL=pNode.createModuleURL.bind(pNode);
+export const createESModuleCompiler=pNode.createESModuleCompiler.bind(pNode);
 //export const events=pNode.events;
 export const file=pNode.file.bind(pNode);
 export const getAliases=pNode.getAliases;
