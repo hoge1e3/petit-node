@@ -1,9 +1,9 @@
-import {Aliases } from "./alias.js";
 import { convert } from "./convImport.js";
 import { CompiledEvent, CompileStartEvent, ESModuleCompilerParam, IAliases, IModuleCache, Module } from "../types/index.js";
 import { CompiledESModule, ModuleEntry } from "./Module.js";
 import { CJSCompiler } from "./CommonJS.js";
 import { genCircularResolver } from "./ESCircular.js";
+import { retry } from "petit-fs";
 
 class DependencyChecker {
     private dependencies: Map<string, Set<string>> = new Map();
@@ -163,7 +163,7 @@ export function traceInvalidImport(cache: IModuleCache,original:Error, start:Com
     if (candidates.length==0) return original;
     return new Error(original.message+"\n"+"Check these dependents:\n"+candidates.map((c)=>c.path).join("\n"));
 }
-async function retry<T>(f:()=>T){
+/*async function retry<T>(f:()=>T){
   try{
     return f();
   }catch(_e){
@@ -175,4 +175,4 @@ async function retry<T>(f:()=>T){
       throw e;
     }
   }
-}
+}*/
