@@ -4,6 +4,8 @@ import * as FS from "@hoge1e3/fs2";
 import { Aliases } from "./alias.js";
 import { CompiledCJS, ModuleEntry } from "./Module.js";
 import {ex} from "./errors.js";
+import * as espree from 'espree';
+import { simple, SimpleVisitors } from "acorn-walk";
 type RequireFunc=((path:string)=>ModuleValue)&{
     deps:Map<string,Module>,
     freezeDeps():void,
@@ -130,4 +132,27 @@ export function require(aliases:IAliases,porf:string|SFile, base?:SFile|string):
     }
     const entry = ModuleEntry.resolve("require", path, fbase);
     return new CJSCompiler(aliases).compile(entry).value;
+}
+
+export function guessDependencies(entry: ModuleEntry):ModuleEntry[] {
+    const file=entry.file;
+    const base=file.up()!;
+    // parse using esprima and extract require("string-literal")
+    // and get ModuleEntry using ModuleEntry.resolve("require", path,base);
+    const source=file.text();
+    const ast=espree.parse(source);
+    const deps:ModuleEntry[]=[];
+    const visitors: SimpleVisitors<unknown> = {
+        CallExpression(node) {
+            if (node.callee.type==="Identifier" && node.callee.name==="require") {
+                const arg=node.arguments[0];
+                if (arg && arg.type==="Literal" && typeof arg.value==="string") {
+                    deps.push(ModuleEntry.resolve("require", arg.value, base));
+                }
+            }
+        }
+    };
+    simple(ast, visitors);
+    return deps;
+
 }

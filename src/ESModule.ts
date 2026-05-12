@@ -116,6 +116,7 @@ export class ESModuleCompiler {
         if (e.moduleType() === "CJS") {
             if (this.oncompilestart) await this.oncompilestart({ entry:e, isCJS: true });
             try{
+                //TODO: check dependent module using static analysis and prefetch them
                 const cc = this.getCJSCompiler().compile(e);
                 if (!cc.url) {
                     this.aliases.addURL(cc);
