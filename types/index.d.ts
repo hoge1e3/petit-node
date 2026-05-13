@@ -119,12 +119,16 @@ export type GlobalInfo={
     value: GlobalValue,
     url: string,
 };
+declare const sym_cacheKey: unique symbol;
+export type CacheKey=(`file://${string}`|`cdn://${string}`)&{[sym_cacheKey]:true};
+// "file:///path"  or "cdn://@hoge/fuga"
+
 //export type Aliases=IModuleCache;//Map<string, Module>;//{[key:string]: Alias};
 export interface IModuleCache extends Iterable<Module> {
     add(m:Module):void;
     delete(m:Module):void;
     reload(m:Module):void;
-    getByPath(path:string, skipCheckReload?:boolean):Module|undefined;
+    getByPath(path:CacheKey, skipCheckReload?:boolean):Module|undefined;
     getByURL(url:string, skipCheckReload?:boolean):Module|undefined;
 }
 export type AliasHash={[key:string]:ModuleValue};
@@ -162,7 +166,7 @@ export interface IFileBasedModuleEntry extends IModuleEntry{
     _shouldReload():boolean;
     moduleType():FileBasedModuleType,
 }
-export interface ICDNModuleEntry {
+export interface ICDNModuleEntry extends IModuleEntry {
     name: string,
     url(): string,
     global? :string,

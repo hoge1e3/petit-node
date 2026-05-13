@@ -1,9 +1,15 @@
 import { uniqueName, valueToESCode } from "./ESModuleGenerator.js";
 import { BuiltinModule, CompiledCJS, ModuleCache } from "./Module.js";
 import { jsToBlobURL } from "./scriptTag.js";
-import { AliasHash, IAliases, IModuleCache, ModuleValue, ScriptingContext } from "../types/index.js";
+import { AliasHash, CacheKey, IAliases, IModuleCache, ModuleValue, ScriptingContext } from "../types/index.js";
 import { GlobalValue, GlobalInfo } from "../types/index.js";
-
+//declare const sym_cacheKey: unique symbol;
+export function asFileKey(path: string): CacheKey {
+    return `file://${path}` as CacheKey;
+}
+export function asCDNKey(name: string): CacheKey {
+    return `cdn://${name}` as CacheKey;
+}
 //let gbl_info:GlobalInfo;
 export class Aliases implements IAliases{
 gbl_info:GlobalInfo|undefined;

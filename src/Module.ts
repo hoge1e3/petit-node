@@ -1,8 +1,37 @@
 import { SFile } from "@hoge1e3/sfile";
 import { NodeModule, pathFallback } from "./NodeModule.js";
 import * as FS from "@hoge1e3/fs2";
-import { FileBasedModuleType, ICompiledCJS, ICompiledESModule, IModuleCache, IFileBasedModuleEntry, ImportOrRequire, Module, ModuleValue, ScriptingContext } from "../types/";
+import { FileBasedModuleType, ICompiledCJS, ICompiledESModule, IModuleCache, IFileBasedModuleEntry, ImportOrRequire, Module, ModuleValue, ScriptingContext, IModuleEntry, ICDNModuleEntry } from "../types/";
 
+export function isFileBasedModuleEntry(e:IModuleEntry): e is IFileBasedModuleEntry {
+    return (e.moduleType()==="ES"||e.moduleType()==="CJS");
+}
+export function isCDNBasedModuleEntry(e:IModuleEntry): e is ICDNModuleEntry {
+    return (e.moduleType()==="CDN");
+}
+export function resolveModuleEntry(wantModuleType:ImportOrRequire,path:string,base:SFile):IModuleEntry{
+    try {
+        return FileBasedModuleEntry.resolve(wantModuleType, path, base);
+    } catch(e) {
+        if (path.match(/^[\.\/]/)) {
+            throw new Error(`Module ${path} not found`);
+        }
+        return new CDNBasedModuleEntry(path);
+    }
+}
+export class CDNBasedModuleEntry implements ICDNModuleEntry {
+    constructor(public name: string, 
+        public global? :string){}
+    url(): string {
+        if (this.global) {
+            return `https://cdn.jsdelivr.net/npm/${this.name}`;
+        }
+        return `https://cdn.jsdelivr.net/npm/${this.name}+esm`;
+    }
+    moduleType() {
+        return "CDN" as "CDN";
+    }
+}
 export class FileBasedModuleEntry implements IFileBasedModuleEntry{
     constructor(
         public file: SFile,
