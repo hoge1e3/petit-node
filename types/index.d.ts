@@ -64,7 +64,8 @@ export interface Module{
 }
 export interface IAliases {
     addAliases(p:AliasHash):void;
-    addAlias(path:string, value:ModuleValue, properties?:string[]):void;   cache:IModuleCache;
+    addAlias(path:string, value:ModuleValue, properties?:string[]):void;
+    cache:IModuleCache;
     addURL(module:ICompiledCJS/*, properties?:string[]*/):void;
     scriptingContext: ScriptingContext;
     initModuleGlobal():Promise<GlobalInfo>;

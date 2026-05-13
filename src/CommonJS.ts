@@ -134,20 +134,20 @@ export function require(aliases:IAliases,porf:string|SFile, base?:SFile|string):
     return new CJSCompiler(aliases).compile(entry).value;
 }
 
-export function guessDependencies(entry: ModuleEntry):ModuleEntry[] {
+export async function guessDependencies(entry: ModuleEntry):Promise<Set<ModuleEntry>> {
     const file=entry.file;
     const base=file.up()!;
     // parse using esprima and extract require("string-literal")
     // and get ModuleEntry using ModuleEntry.resolve("require", path,base);
-    const source=file.text();
+    const source=await file.async().text();
     const ast=espree.parse(source);
-    const deps:ModuleEntry[]=[];
+    const deps:Set<ModuleEntry>=new Set();
     const visitors: SimpleVisitors<unknown> = {
         CallExpression(node) {
             if (node.callee.type==="Identifier" && node.callee.name==="require") {
                 const arg=node.arguments[0];
                 if (arg && arg.type==="Literal" && typeof arg.value==="string") {
-                    deps.push(ModuleEntry.resolve("require", arg.value, base));
+                    deps.add(ModuleEntry.resolve("require", arg.value, base));
                 }
             }
         }
