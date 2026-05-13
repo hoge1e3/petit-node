@@ -1,9 +1,9 @@
 import { SFile } from "@hoge1e3/sfile";
 import { NodeModule, pathFallback } from "./NodeModule.js";
 import * as FS from "@hoge1e3/fs2";
-import { FileBasedModuleType, ICompiledCJS, ICompiledESModule, IModuleCache, IModuleEntry, ImportOrRequire, Module, ModuleValue, ScriptingContext } from "../types/";
+import { FileBasedModuleType, ICompiledCJS, ICompiledESModule, IModuleCache, IFileBasedModuleEntry, ImportOrRequire, Module, ModuleValue, ScriptingContext } from "../types/";
 
-export class ModuleEntry implements IModuleEntry{
+export class FileBasedModuleEntry implements IFileBasedModuleEntry{
     constructor(
         public file: SFile,
         public sourceCode: string,
@@ -17,24 +17,24 @@ export class ModuleEntry implements IModuleEntry{
     moduleType():FileBasedModuleType {
         return NodeModule.moduleTypeOfFile(this.file);
     }
-    static fromFile(file:SFile, timestamp:number=file.lastUpdate()):ModuleEntry {
-        const newEntry=new ModuleEntry(file, file.text(), timestamp);
+    static fromFile(file:SFile, timestamp:number=file.lastUpdate()):FileBasedModuleEntry {
+        const newEntry=new FileBasedModuleEntry(file, file.text(), timestamp);
         return newEntry;
     }
-    static resolve(wantModuleType:ImportOrRequire,path:string,base:SFile):ModuleEntry{
+    static resolve(wantModuleType:ImportOrRequire,path:string,base:SFile):FileBasedModuleEntry{
         if (path.match(/^[\.\/]/)) {
             let file=path.match(/^\./)?
                 base.rel(path):FS.get(path);
             if (wantModuleType==="require") file=pathFallback(file);
-            return ModuleEntry.fromFile(file);
+            return FileBasedModuleEntry.fromFile(file);
         }else {
             const [main,sub]=NodeModule.parsePath(path);
             return this.fromNodeModule(wantModuleType, NodeModule.resolve(main,base),sub);
         }
     }
-    static fromNodeModule(wantModuleType:ImportOrRequire, m:NodeModule, subPath="."):ModuleEntry {
+    static fromNodeModule(wantModuleType:ImportOrRequire, m:NodeModule, subPath="."):FileBasedModuleEntry {
         const file=m.getEntry(wantModuleType, subPath);
-        return ModuleEntry.fromFile(file);
+        return FileBasedModuleEntry.fromFile(file);
     }
 }
 
@@ -43,7 +43,7 @@ export class CompiledESModule implements ICompiledESModule {
     public readonly path:string;
     constructor(
         public readonly scriptingContext: ScriptingContext,
-        public readonly entry: ModuleEntry,
+        public readonly entry: FileBasedModuleEntry,
         public readonly dependencies: Module[],
         public readonly url: string,
         public readonly generatedCode: string,
@@ -67,7 +67,7 @@ export class CompiledCJS implements ICompiledCJS{
     public url:string|undefined;
     constructor(
         public readonly scriptingContext: ScriptingContext,
-        public readonly entry: ModuleEntry,
+        public readonly entry: FileBasedModuleEntry,
         public readonly dependencyMap: Map<string, Module>,
         public value: ModuleValue,
         public readonly generatedCode: string,

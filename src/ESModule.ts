@@ -1,6 +1,6 @@
 import { convert } from "./convImport.js";
 import { CompiledEvent, CompileStartEvent, ESModuleCompilerParam, IAliases, IModuleCache, Module } from "../types/index.js";
-import { CompiledESModule, ModuleEntry } from "./Module.js";
+import { CompiledESModule, FileBasedModuleEntry } from "./Module.js";
 import { CJSCompiler } from "./CommonJS.js";
 import { genCircularResolver } from "./ESCircular.js";
 import { retry } from "petit-fs";
@@ -61,7 +61,7 @@ export class ESModuleCompiler {
     get cache():IModuleCache{
         return this.aliases.cache;
     }
-    async compile(entry:ModuleEntry):Promise<CompiledESModule> {
+    async compile(entry:FileBasedModuleEntry):Promise<CompiledESModule> {
         const path=entry.file.path();
         const incache=this.cache.getByPath(path);
         if(incache instanceof CompiledESModule) {
@@ -77,7 +77,7 @@ export class ESModuleCompiler {
         this.promiseCache.set(path, pr);
         return await pr;
     }
-    async compilePromise(entry:ModuleEntry):Promise<CompiledESModule> {
+    async compilePromise(entry:FileBasedModuleEntry):Promise<CompiledESModule> {
         const aliases=this.aliases;
         if (this.oncompilestart) await this.oncompilestart({entry});
         const deps=[] as Module[];
@@ -94,7 +94,7 @@ export class ESModuleCompiler {
                     return path;
                 }
                 const e=await retry(()=>
-                  ModuleEntry.resolve
+                  FileBasedModuleEntry.resolve
                   ("import", path,base));
                 const circular=this.depChecker.add(entry.file.path(), e.file.path());
                 if (circular) {
@@ -112,7 +112,7 @@ export class ESModuleCompiler {
         this.cache.add(compiled);
         return compiled;
     }
-    private async compileCJSFallback(e: ModuleEntry):Promise<Module> {
+    private async compileCJSFallback(e: FileBasedModuleEntry):Promise<Module> {
         if (e.moduleType() === "CJS") {
             if (this.oncompilestart) await this.oncompilestart({ entry:e, isCJS: true });
             try{

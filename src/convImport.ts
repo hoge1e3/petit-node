@@ -2,7 +2,7 @@ import type {ExportAllDeclaration, ExportDefaultDeclaration, ExportNamedDeclarat
 import * as espree from 'espree';
 import { simple, SimpleVisitors } from "acorn-walk";
 import { CompiledESModule} from "./Module.js";
-import { ModuleEntry } from "./Module.js";
+import { FileBasedModuleEntry } from "./Module.js";
 import { Module, ScriptingContext } from "../types/index.js";
 
 
@@ -22,7 +22,7 @@ function spliceStr(str:string,
   return firstPart + (replacement || '') + lastPart;
 }
 const sourceMapPat=/\/\/# sourceMappingURL=([^\r\n]+)\s*$/;
-export async function convert(sctx:ScriptingContext, entry: ModuleEntry,urlConverter:URLConverter): Promise<CompiledESModule> {
+export async function convert(sctx:ScriptingContext, entry: FileBasedModuleEntry,urlConverter:URLConverter): Promise<CompiledESModule> {
   const file=entry.file;
   try {
     const sourceCode=file.text();

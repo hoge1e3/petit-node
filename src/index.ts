@@ -18,8 +18,8 @@ import * as sfile from "@hoge1e3/sfile";
 import { AliasHash, BootOptions, Core, ESModuleCompilerHandlers, ESModuleCompilerParam, IModuleCache, ImportOrRequire, Module, ModuleValue, PNode, ScriptingContext, TFS } from "../types/";
 import {require} from "./CommonJS.js";
 export {require, CJSCompiler} from "./CommonJS.js";
-import { CompiledCJS, CompiledESModule, ModuleEntry } from "./Module.js";
-export { CompiledESModule, ModuleEntry } from "./Module.js";
+import { CompiledCJS, CompiledESModule, FileBasedModuleEntry } from "./Module.js";
+export { CompiledESModule, FileBasedModuleEntry as ModuleEntry } from "./Module.js";
 import { jsToBlobURL } from "./scriptTag.js";
 import { JSZip,} from "@hoge1e3/fs2";
 import * as querystring from "querystring";
@@ -208,11 +208,11 @@ init(options:BootOptions={
 }){return this.boot(options);},
 //resolveEntry(wantModuleType: ImportOrRequire, path: string|SFile):ModuleEntry;
 //resolveEntry(wantModuleType: ImportOrRequire, path: string, base: string|SFile):ModuleEntry;
-resolveEntry(wantModuleType: ImportOrRequire, path: string|SFile ,base?:string|SFile):ModuleEntry{
-    let mod:ModuleEntry;
+resolveEntry(wantModuleType: ImportOrRequire, path: string|SFile ,base?:string|SFile):FileBasedModuleEntry{
+    let mod:FileBasedModuleEntry;
     if(base){
         if (typeof path!=="string") throw invalidSpec();
-        mod=ModuleEntry.resolve(
+        mod=FileBasedModuleEntry.resolve(
             wantModuleType,
             path,
             typeof base==="string"?this.getFS().get(base):base
@@ -220,9 +220,9 @@ resolveEntry(wantModuleType: ImportOrRequire, path: string|SFile ,base?:string|S
     } else {
         if (typeof path==="string") path=this.getFS().get(path);// throw invalidSpec();
         if(path.isDir()){
-            mod=ModuleEntry.fromNodeModule(wantModuleType, new NodeModule(path));
+            mod=FileBasedModuleEntry.fromNodeModule(wantModuleType, new NodeModule(path));
         }else{
-            mod=ModuleEntry.fromFile(path);
+            mod=FileBasedModuleEntry.fromFile(path);
         }
     }
     return mod;
@@ -262,7 +262,7 @@ async createModuleURL(f:SFile):Promise<string>{
     const compiler=ESModuleCompiler.create({
         aliases: this.aliases,
     });
-    return (await compiler.compile(ModuleEntry.fromFile(f))).url;
+    return (await compiler.compile(FileBasedModuleEntry.fromFile(f))).url;
 },
 createESModuleCompiler(handler: ESModuleCompilerHandlers={}):ESModuleCompiler{
     return ESModuleCompiler.create({
@@ -308,7 +308,7 @@ urlToFile(url:string):SFile {
 addPrecompiledESModule(path:string, timestamp:number, compiledCode: string, dependencies:Module[]):CompiledESModule {
     const file=this.getFS().get(path);
     const aliases=this.aliases.cache;
-    const entry=ModuleEntry.fromFile(file, timestamp);
+    const entry=FileBasedModuleEntry.fromFile(file, timestamp);
     const deps=dependencies;
     const url=jsToBlobURL(this.aliases.scriptingContext, compiledCode);
     const res=new CompiledESModule(
@@ -323,7 +323,7 @@ addPrecompiledCJSModule(path:string, timestamp:number, compiledCode:Function, de
     const require=(path:string)=>{
         const builtin=cache.getByPath(path);
         if (builtin?.value) return builtin.value;
-        const entry=ModuleEntry.resolve("require",path, base);
+        const entry=FileBasedModuleEntry.resolve("require",path, base);
         const module=cache.getByPath(entry.file.path());
         if (module?.value) return module.value;
         throw new Error(`Cannot resolve ${path}`);
@@ -331,7 +331,7 @@ addPrecompiledCJSModule(path:string, timestamp:number, compiledCode:Function, de
     const exports={} as ModuleValue, module={exports}, filename=file.path(), dirname=base.path();
     const args=[require, exports, module, filename, dirname ];
     const value=compiledCode(...args);
-    const entry=ModuleEntry.fromFile(file,timestamp);
+    const entry=FileBasedModuleEntry.fromFile(file,timestamp);
     const res=new CompiledCJS(
         this.aliases.scriptingContext,entry, dependencyMap, value, "/*preCompiledModule*/"+compiledCode);
     cache.add(res);

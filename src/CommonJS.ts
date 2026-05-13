@@ -2,7 +2,7 @@ import { SFile } from "@hoge1e3/sfile";
 import { IAliases, IModuleCache, Module, ModuleValue, ScriptingContext } from "../types";
 import * as FS from "@hoge1e3/fs2";
 import { Aliases } from "./alias.js";
-import { CompiledCJS, ModuleEntry } from "./Module.js";
+import { CompiledCJS, FileBasedModuleEntry } from "./Module.js";
 import {ex} from "./errors.js";
 import * as espree from 'espree';
 import { simple, SimpleVisitors } from "acorn-walk";
@@ -43,7 +43,7 @@ export class CJSCompiler {
                 if (!depsFrozen) deps.set(path, module);
                 return module.value;
             }
-            const e=ModuleEntry.resolve("require", path,base);
+            const e=FileBasedModuleEntry.resolve("require", path,base);
             const c=this.compile(e);
             //console.log("deps set",path,depsFrozen);
             if (!depsFrozen) deps.set(path, c);
@@ -55,7 +55,7 @@ export class CJSCompiler {
                 depsFrozen=true;
             },
             resolve(path:string):string{
-                const e=ModuleEntry.resolve("require", path,base);
+                const e=FileBasedModuleEntry.resolve("require", path,base);
                 return e.file.path();
             }
         });
@@ -70,7 +70,7 @@ export class CJSCompiler {
         return [require, exports, module, filename, dirname ] as 
                 [RequireFunc, ModuleValue, {exports:ModuleValue}, string, string ];
     }
-    compile(entry: ModuleEntry):CompiledCJS {
+    compile(entry: FileBasedModuleEntry):CompiledCJS {
       try {
         const file=entry.file;
         let c=this.cache.getByPath(file.path());
@@ -130,29 +130,28 @@ export function require(aliases:IAliases,porf:string|SFile, base?:SFile|string):
     } else {
         fbase=base;
     }
-    const entry = ModuleEntry.resolve("require", path, fbase);
+    const entry = FileBasedModuleEntry.resolve("require", path, fbase);
     return new CJSCompiler(aliases).compile(entry).value;
 }
 
-export async function guessDependencies(entry: ModuleEntry):Promise<Set<ModuleEntry>> {
+export async function guessDependencies(entry: FileBasedModuleEntry):Promise<Set<FileBasedModuleEntry>> {
     const file=entry.file;
     const base=file.up()!;
     // parse using esprima and extract require("string-literal")
     // and get ModuleEntry using ModuleEntry.resolve("require", path,base);
     const source=await file.async().text();
     const ast=espree.parse(source);
-    const deps:Set<ModuleEntry>=new Set();
+    const deps:Set<FileBasedModuleEntry>=new Set();
     const visitors: SimpleVisitors<unknown> = {
         CallExpression(node) {
             if (node.callee.type==="Identifier" && node.callee.name==="require") {
                 const arg=node.arguments[0];
                 if (arg && arg.type==="Literal" && typeof arg.value==="string") {
-                    deps.add(ModuleEntry.resolve("require", arg.value, base));
+                    deps.add(FileBasedModuleEntry.resolve("require", arg.value, base));
                 }
             }
         }
     };
     simple(ast, visitors);
     return deps;
-
 }

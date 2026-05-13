@@ -48,10 +48,10 @@ export type FSDEPS={
 export type ImportOrRequire="import"|"require";
 export interface FileBasedModule extends Module {
     readonly type:FileBasedModuleType;
-    entry:IModuleEntry;
+    entry:IFileBasedModuleEntry;
 }
 export type FileBasedModuleType="ES"|"CJS";
-export type ModuleType=FileBasedModuleType|"Builtin"|"External";
+export type ModuleType=FileBasedModuleType|"Builtin"|"External"|"CDN";
 export interface Module{
     type: ModuleType,
     path: string,
@@ -82,14 +82,14 @@ export type CompiledEvent={
     module: Module,
 };
 export type CompileStartEvent={
-    entry: IModuleEntry,
+    entry: IFileBasedModuleEntry,
     byOtherCompiler?: boolean,
     isCJS?: boolean,
 };
 
 export interface ICompiledESModule extends FileBasedModule {
     type: "ES";
-    entry: IModuleEntry;
+    entry: IFileBasedModuleEntry;
     dependencies: Module[];
     url: string;
     generatedCode: string;
@@ -99,7 +99,7 @@ export interface ICompiledESModule extends FileBasedModule {
 }
 export interface ICompiledCJS extends FileBasedModule  {
     type: "CJS";
-    entry: IModuleEntry;
+    entry: IFileBasedModuleEntry;
     dependencyMap: Map<string, Module>;
     value: ModuleValue;
     generatedCode: string;
@@ -153,14 +153,23 @@ export type BootOptions={
 };
 export type Initializer=(p:{FS:TFS, pNode: PNode })=>Promise<any>;
 export interface IModuleEntry{
+    moduleType():ModuleType,
+}
+export interface IFileBasedModuleEntry extends IModuleEntry{
     file: SFile,
     sourceCode: string,
     timestamp: number,
     _shouldReload():boolean;
     moduleType():FileBasedModuleType,
 }
+export interface ICDNModuleEntry {
+    name: string,
+    url(): string,
+    global? :string,
+    moduleType():"CDN",
+}
 export interface IESModuleCompiler{
-    compile(entry:IModuleEntry):Promise<ICompiledESModule>;
+    compile(entry:IFileBasedModuleEntry):Promise<ICompiledESModule>;
 }
 export interface PNode {
   aliases:IAliases,
