@@ -10,6 +10,9 @@ export function asFileKey(path: string): CacheKey {
 export function asCDNKey(name: string): CacheKey {
     return `cdn://${name}` as CacheKey;
 }
+export function asBuiltinKey(name: string): CacheKey {
+    return `builtin://${name}` as CacheKey;
+}
 //let gbl_info:GlobalInfo;
 export class Aliases implements IAliases{
 gbl_info:GlobalInfo|undefined;

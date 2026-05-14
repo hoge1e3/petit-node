@@ -4,6 +4,7 @@ import { CompiledESModule, FileBasedModuleEntry } from "./Module.js";
 import { CJSCompiler } from "./CommonJS.js";
 import { genCircularResolver } from "./ESCircular.js";
 import { retry } from "petit-fs";
+import { asFileKey } from "./alias.js";
 
 class DependencyChecker {
     private dependencies: Map<string, Set<string>> = new Map();
@@ -63,7 +64,7 @@ export class ESModuleCompiler {
     }
     async compile(entry:FileBasedModuleEntry):Promise<CompiledESModule> {
         const path=entry.file.path();
-        const incache=this.cache.getByPath(path);
+        const incache=this.cache.getByPath(asFileKey(path));
         if(incache instanceof CompiledESModule) {
             if (this.oncachehit) await this.oncachehit({entry, byOtherCompiler:true});
             return incache;    

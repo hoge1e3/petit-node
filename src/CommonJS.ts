@@ -80,7 +80,7 @@ export class CJSCompiler {
     compile(entry: FileBasedModuleEntry):CompiledCJS {
       try {
         const file=entry.file;
-        let c=this.cache.getByPath(file.path());
+        let c=this.cache.getByPath(asFileKey(file.path()));
         if (c instanceof CompiledCJS) {
             // Why is it needed? Already checked in [A]?
             // Because path in [A] may relative like './baz.js', while file.path() is absolute.

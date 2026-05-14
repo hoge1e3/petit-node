@@ -1,10 +1,31 @@
-import { IAliases, ICDNModuleEntry } from "../types";
+import { IAliases, ICDNModuleEntry, CDNModule, Module, ModuleValue } from "../types";
+import { asCDNKey } from "./alias";
 
 
 
 const g:any=globalThis;
 
-export async function loadCDN(aliases:IAliases, e:ICDNModuleEntry):Promise<ICDNModule> {
+export function createCDNModule(e:ICDNModuleEntry, modval:ModuleValue) {
+    const name=e.name;
+    const url=e.url();
+    const module:CDNModule={
+        entry:e,
+        type:"CDN",
+        path: asCDNKey(name),
+        value:modval,
+        url,
+        dependencies:[],
+        shouldReload() {
+            return false;
+        },
+        shouldReloadLoop(path: Set<Module>) {
+            return false;
+        },
+        dispose(){}
+    }
+    return module;
+}
+export async function loadCDN(aliases:IAliases, e:ICDNModuleEntry):Promise<CDNModule> {
     const name=e.name;
     if (e.global) {
         const globalName = e.global;
@@ -13,16 +34,19 @@ export async function loadCDN(aliases:IAliases, e:ICDNModuleEntry):Promise<ICDNM
         }
         const url = e.url();
         await import(url);
-        const mod = g[globalName];
-        if (!mod) {
+        const modval = g[globalName];
+        if (!modval) {
             throw new Error(
                 `Global variable "${globalName}" not found after loading ${name}`
             );
         }
-        aliases.cache.add()
-        return mod;
+        const module=createCDNModule(e,modval);
+        aliases.cache.add(module);
+        return modval;
     }
     const url = e.url();
-    aliases.cache.add()
-    return import(url);
+    const modval=await import(url);
+    const module=createCDNModule(e,modval);
+    aliases.cache.add(module);
+    return modval;
 }

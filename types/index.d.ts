@@ -50,11 +50,15 @@ export interface FileBasedModule extends Module {
     readonly type:FileBasedModuleType;
     entry:IFileBasedModuleEntry;
 }
+export interface CDNModule extends Module {
+    type: "CDN",
+    entry:ICDNModuleEntry,
+}
 export type FileBasedModuleType="ES"|"CJS";
 export type ModuleType=FileBasedModuleType|"Builtin"|"External"|"CDN";
 export interface Module{
     type: ModuleType,
-    path: string,
+    path: CacheKey,
     value?: ModuleValue,
     url?: string,
     dependencies: Module[],
@@ -120,7 +124,7 @@ export type GlobalInfo={
     url: string,
 };
 declare const sym_cacheKey: unique symbol;
-export type CacheKey=(`file://${string}`|`cdn://${string}`)&{[sym_cacheKey]:true};
+export type CacheKey=(`file://${string}`|`cdn://${string}`|`builtin://${string}`)&{[sym_cacheKey]:true};
 // "file:///path"  or "cdn://@hoge/fuga"
 
 //export type Aliases=IModuleCache;//Map<string, Module>;//{[key:string]: Alias};

@@ -1,7 +1,8 @@
 import { SFile } from "@hoge1e3/sfile";
 import { NodeModule, pathFallback } from "./NodeModule.js";
 import * as FS from "@hoge1e3/fs2";
-import { FileBasedModuleType, ICompiledCJS, ICompiledESModule, IModuleCache, IFileBasedModuleEntry, ImportOrRequire, Module, ModuleValue, ScriptingContext, IModuleEntry, ICDNModuleEntry } from "../types/";
+import { FileBasedModuleType, ICompiledCJS, ICompiledESModule, IModuleCache, IFileBasedModuleEntry, ImportOrRequire, Module, ModuleValue, ScriptingContext, IModuleEntry, ICDNModuleEntry, CacheKey } from "../types/";
+import { asBuiltinKey, asFileKey } from "./alias.js";
 
 export function isFileBasedModuleEntry(e:IModuleEntry): e is IFileBasedModuleEntry {
     return (e.moduleType()==="ES"||e.moduleType()==="CJS");
@@ -92,7 +93,7 @@ export class CompiledESModule implements ICompiledESModule {
 }
 export class CompiledCJS implements ICompiledCJS{
     readonly type="CJS";
-    public readonly path:string;
+    public readonly path:CacheKey;
     public url:string|undefined;
     constructor(
         public readonly scriptingContext: ScriptingContext,
@@ -101,7 +102,7 @@ export class CompiledCJS implements ICompiledCJS{
         public value: ModuleValue,
         public readonly generatedCode: string,
     ){
-        this.path=entry.file.path();
+        this.path=asFileKey(entry.file.path());
     }
     get dependencies():Module[]{
         return [...this.dependencyMap.values()];
@@ -120,7 +121,9 @@ export class CompiledCJS implements ICompiledCJS{
 export class BuiltinModule implements Module {
     readonly type="Builtin";
     dependencies: Module[];
-    constructor(public path:string, public value:ModuleValue, public url:string) {
+    readonly path: CacheKey;
+    constructor(name:string, public value:ModuleValue, public url:string) {
+        this.path=asBuiltinKey(name);
         this.dependencies=[];
     }
     shouldReload(): boolean {return this.shouldReloadLoop(new Set<Module>());}
@@ -129,7 +132,7 @@ export class BuiltinModule implements Module {
 }
 export class ModuleCache implements IModuleCache {
     private byURL=new Map<string, Module>;
-    private byPath=new Map<string, Module>;
+    private byPath=new Map<CacheKey, Module>;
     constructor() {
     }
     [Symbol.iterator](): Iterator<Module> {
@@ -149,7 +152,7 @@ export class ModuleCache implements IModuleCache {
             this.byURL.set(m.url, m);
         }
     }
-    getByPath(path:string, skipCheckReload=false) {
+    getByPath(path:CacheKey, skipCheckReload=false) {
         const e=this.byPath.get(path);
         return skipCheckReload ? e : this.checkReload(e);
     }
