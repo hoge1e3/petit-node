@@ -1,14 +1,14 @@
 import { SFile } from "@hoge1e3/sfile";
 import { NodeModule, pathFallback } from "./NodeModule.js";
 import * as FS from "@hoge1e3/fs2";
-import { FileBasedModuleType, ICompiledCJS, ICompiledESModule, IModuleCache, IFileBasedModuleEntry, ImportOrRequire, Module, ModuleValue, ScriptingContext, IModuleEntry, ICDNModuleEntry, CacheKey } from "../types/";
+import { FileBasedModuleType, ICompiledCJS, ICompiledESModule, IModuleCache, IFileBasedModuleEntry, ImportOrRequire, Module, ModuleValue, ScriptingContext, IModuleEntry, CacheKey, IBuiltinModuleEntry } from "../types/";
 import { asBuiltinKey, asFileKey } from "./alias.js";
 
 export function isFileBasedModuleEntry(e:IModuleEntry): e is IFileBasedModuleEntry {
     return (e.moduleType()==="ES"||e.moduleType()==="CJS");
 }
-export function isCDNBasedModuleEntry(e:IModuleEntry): e is ICDNModuleEntry {
-    return (e.moduleType()==="CDN");
+export function isBuiltinModuleEntry(e:IModuleEntry): e is IBuiltinModuleEntry {
+    return (e.moduleType()==="Builtin");
 }
 export function resolveModuleEntry(wantModuleType:ImportOrRequire,path:string,base:SFile):IModuleEntry{
     try {
@@ -17,12 +17,15 @@ export function resolveModuleEntry(wantModuleType:ImportOrRequire,path:string,ba
         if (path.match(/^[\.\/]/)) {
             throw new Error(`Module ${path} not found`);
         }
-        return new CDNBasedModuleEntry(path);
+        return new BuiltinModuleEntry(path);
     }
 }
-export class CDNBasedModuleEntry implements ICDNModuleEntry {
+export class BuiltinModuleEntry implements IBuiltinModuleEntry {
     constructor(public name: string, 
         public global? :string){}
+    cacheKey(): CacheKey {
+        return asBuiltinKey(this.name);
+    }
     url(): string {
         if (this.global) {
             return `https://cdn.jsdelivr.net/npm/${this.name}`;
@@ -30,7 +33,7 @@ export class CDNBasedModuleEntry implements ICDNModuleEntry {
         return `https://cdn.jsdelivr.net/npm/${this.name}+esm`;
     }
     moduleType() {
-        return "CDN" as "CDN";
+        return "Builtin" as "Builtin";
     }
 }
 export class FileBasedModuleEntry implements IFileBasedModuleEntry{
@@ -39,6 +42,9 @@ export class FileBasedModuleEntry implements IFileBasedModuleEntry{
         public sourceCode: string,
         public timestamp: number,
         ) {
+    }
+    cacheKey(): CacheKey {
+        return asFileKey(this.file.path());
     }
     _shouldReload():boolean {
         if (!this.file.exists()) return false;// for preload module
@@ -70,7 +76,7 @@ export class FileBasedModuleEntry implements IFileBasedModuleEntry{
 
 export class CompiledESModule implements ICompiledESModule {
     readonly type="ES";
-    public readonly path:string;
+    public readonly path:CacheKey;
     constructor(
         public readonly scriptingContext: ScriptingContext,
         public readonly entry: FileBasedModuleEntry,
@@ -78,14 +84,14 @@ export class CompiledESModule implements ICompiledESModule {
         public readonly url: string,
         public readonly generatedCode: string,
     ){
-        this.path=entry.file.path();
+        this.path=asFileKey(entry.file.path());
     }
     shouldReload(): boolean {return this.shouldReloadLoop(new Set<Module>());}
-    shouldReloadLoop(path: Set<Module>):boolean {
-        if (path.has(this)) return false;
-        path.add(this);
+    shouldReloadLoop(visited: Set<Module>):boolean {
+        if (visited.has(this)) return false;
+        visited.add(this);
         if (this.entry._shouldReload()) return true;
-        return this.dependencies.some((dep)=>dep.shouldReloadLoop(path));
+        return this.dependencies.some((dep)=>dep.shouldReloadLoop(visited));
     }
     dispose(){
         this.scriptingContext.URL.revokeObjectURL(this.url);
@@ -108,64 +114,13 @@ export class CompiledCJS implements ICompiledCJS{
         return [...this.dependencyMap.values()];
     }
     shouldReload(): boolean {return this.shouldReloadLoop(new Set<Module>());}
-    shouldReloadLoop(path:Set<Module>):boolean {
-        if (path.has(this)) return false;
-        path.add(this);
+    shouldReloadLoop(visited:Set<Module>):boolean {
+        if (visited.has(this)) return false;
+        visited.add(this);
         if (this.entry._shouldReload()) return true;
-        return this.dependencies.some((dep)=>dep.shouldReloadLoop(path));
+        return this.dependencies.some((dep)=>dep.shouldReloadLoop(visited));
     }
     dispose(){
         if (this.url) this.scriptingContext.URL.revokeObjectURL(this.url);
-    }
-}
-export class BuiltinModule implements Module {
-    readonly type="Builtin";
-    dependencies: Module[];
-    readonly path: CacheKey;
-    constructor(name:string, public value:ModuleValue, public url:string) {
-        this.path=asBuiltinKey(name);
-        this.dependencies=[];
-    }
-    shouldReload(): boolean {return this.shouldReloadLoop(new Set<Module>());}
-    shouldReloadLoop(path: Set<Module>): boolean {return false;}
-    dispose(): void {}
-}
-export class ModuleCache implements IModuleCache {
-    private byURL=new Map<string, Module>;
-    private byPath=new Map<CacheKey, Module>;
-    constructor() {
-    }
-    [Symbol.iterator](): Iterator<Module> {
-        return this.byPath.values();
-    }
-    add(m:Module) {
-        if (m.url) this.byURL.set(m.url, m);
-        this.byPath.set(m.path, m);
-    }
-    delete(m:Module) {
-        if (m.url) this.byURL.delete(m.url);
-        this.byPath.delete(m.path);
-    }
-    reload(m:Module){
-        if (this.getByPath(m.path)!==m) throw new Error(`${m.path} is not exists in cache or deprecated.`);
-        if (m.url) {
-            this.byURL.set(m.url, m);
-        }
-    }
-    getByPath(path:CacheKey, skipCheckReload=false) {
-        const e=this.byPath.get(path);
-        return skipCheckReload ? e : this.checkReload(e);
-    }
-    getByURL(url:string, skipCheckReload=false) {
-        const e=this.byURL.get(url);
-        return skipCheckReload ? e :this.checkReload(e);
-    }
-    private checkReload(e:Module|undefined) {
-        if (e && e.shouldReload()) {
-            e.dispose();
-            this.delete(e);
-            return undefined;
-        }
-        return e;
     }
 }

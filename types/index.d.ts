@@ -50,12 +50,8 @@ export interface FileBasedModule extends Module {
     readonly type:FileBasedModuleType;
     entry:IFileBasedModuleEntry;
 }
-export interface CDNModule extends Module {
-    type: "CDN",
-    entry:ICDNModuleEntry,
-}
 export type FileBasedModuleType="ES"|"CJS";
-export type ModuleType=FileBasedModuleType|"Builtin"|"External"|"CDN";
+export type ModuleType=FileBasedModuleType|"Builtin"; // Builtin includes builtin and cdn(all Non-file-based)
 export interface Module{
     type: ModuleType,
     path: CacheKey,
@@ -124,7 +120,7 @@ export type GlobalInfo={
     url: string,
 };
 declare const sym_cacheKey: unique symbol;
-export type CacheKey=(`file://${string}`|`cdn://${string}`|`builtin://${string}`)&{[sym_cacheKey]:true};
+export type CacheKey=(`file://${string}`|/*`cdn://${string}`|*/`builtin://${string}`)&{[sym_cacheKey]:true};
 // "file:///path"  or "cdn://@hoge/fuga"
 
 //export type Aliases=IModuleCache;//Map<string, Module>;//{[key:string]: Alias};
@@ -161,6 +157,7 @@ export type BootOptions={
 };
 export type Initializer=(p:{FS:TFS, pNode: PNode })=>Promise<any>;
 export interface IModuleEntry{
+    cacheKey(): CacheKey,
     moduleType():ModuleType,
 }
 export interface IFileBasedModuleEntry extends IModuleEntry{
@@ -170,11 +167,11 @@ export interface IFileBasedModuleEntry extends IModuleEntry{
     _shouldReload():boolean;
     moduleType():FileBasedModuleType,
 }
-export interface ICDNModuleEntry extends IModuleEntry {
+export interface IBuiltinModuleEntry extends IModuleEntry {// includes cdn
     name: string,
     url(): string,
     global? :string,
-    moduleType():"CDN",
+    moduleType():"Builtin",
 }
 export interface IESModuleCompiler{
     compile(entry:IFileBasedModuleEntry):Promise<ICompiledESModule>;

@@ -1,10 +1,11 @@
 import { convert } from "./convImport.js";
 import { CompiledEvent, CompileStartEvent, ESModuleCompilerParam, IAliases, IModuleCache, Module } from "../types/index.js";
-import { CompiledESModule, FileBasedModuleEntry } from "./Module.js";
+import { CompiledESModule, FileBasedModuleEntry, isBuiltinModuleEntry, isFileBasedModuleEntry, resolveModuleEntry } from "./Module.js";
 import { CJSCompiler } from "./CommonJS.js";
 import { genCircularResolver } from "./ESCircular.js";
 import { retry } from "petit-fs";
 import { asFileKey } from "./alias.js";
+import { loadCDN } from "./cdn.js";
 
 class DependencyChecker {
     private dependencies: Map<string, Set<string>> = new Map();
@@ -86,23 +87,32 @@ export class ESModuleCompiler {
         if (!base) throw new Error(entry.file+" cannot create base.");
         const urlConverter={
             conv: async(path:string):Promise<string>=>{
-                const m=this.cache.getByPath(path);
-                if (m?.url) {
-                    deps.push(m);
-                    return m.url;
-                }
                 if (path.match(/^https?:/)) {
                     return path;
                 }
                 const e=await retry(()=>
-                  FileBasedModuleEntry.resolve
-                  ("import", path,base));
-                const circular=this.depChecker.add(entry.file.path(), e.file.path());
-                if (circular) {
-                    return await genCircularResolver(this.aliases,e.file);
+                    resolveModuleEntry("import", path,base));
+                const m=this.cache.getByPath(e.cacheKey());
+                if (m?.url) {
+                    deps.push(m);
+                    return m.url;
                 }
-                const compiled: Module = await this.compileCJSFallback(e);
-                if (!compiled.url) throw new Error("URL is not set for "+e.file);
+                /*const e=await retry(()=>
+                FileBasedModuleEntry.resolve
+                ("import", path,base));*/
+                let compiled: Module;
+                if (!isFileBasedModuleEntry(e)) {
+                    if (!isBuiltinModuleEntry(e)) throw new Error(`Module '${path}' not found`);
+                    compiled=await loadCDN(aliases, e);
+                    // TODO? create url for global-polluted module
+                } else {
+                    const circular=this.depChecker.add(entry.file.path(), e.file.path());
+                    if (circular) {
+                        return await genCircularResolver(this.aliases,e.file);
+                    }
+                    compiled= await this.compileCJSFallback(e);
+                }
+                if (!compiled.url) throw new Error("URL is not set for "+e.cacheKey());
                 deps.push(compiled);
                 return compiled.url;
             },
