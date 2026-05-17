@@ -1,7 +1,7 @@
 import { SFile } from "@hoge1e3/sfile";
 import { NodeModule, pathFallback } from "./NodeModule.js";
 import * as FS from "@hoge1e3/fs2";
-import { FileBasedModuleType, ICompiledCJS, ICompiledESModule, IModuleCache, IFileBasedModuleEntry, ImportOrRequire, Module, ModuleValue, ScriptingContext, IModuleEntry, CacheKey, IBuiltinModuleEntry } from "../types/";
+import { FileBasedModuleType, ICompiledCJS, ICompiledESModule, IModuleCache, IFileBasedModuleEntry, ImportOrRequire, Module, ModuleValue, ScriptingContext, IModuleEntry, CacheKey, IBuiltinModuleEntry, IAliases } from "../types/index.js";
 import { asBuiltinKey, asFileKey } from "./alias.js";
 
 export function isFileBasedModuleEntry(e:IModuleEntry): e is IFileBasedModuleEntry {
@@ -10,14 +10,16 @@ export function isFileBasedModuleEntry(e:IModuleEntry): e is IFileBasedModuleEnt
 export function isBuiltinModuleEntry(e:IModuleEntry): e is IBuiltinModuleEntry {
     return (e.moduleType()==="Builtin");
 }
-export function resolveModuleEntry(wantModuleType:ImportOrRequire,path:string,base:SFile):IModuleEntry{
+export function resolveModuleEntry(aliases: IAliases, wantModuleType:ImportOrRequire,path:string,base:SFile):IModuleEntry{
     try {
         return FileBasedModuleEntry.resolve(wantModuleType, path, base);
     } catch(e) {
         if (path.match(/^[\.\/]/)) {
             throw new Error(`Module ${path} not found`);
         }
-        return new BuiltinModuleEntry(path);
+        const ent=new BuiltinModuleEntry(path);
+        if (aliases.invalidModules.has(ent.cacheKey())) throw new Error(`Module '${path}' not found`);
+        return ent;
     }
 }
 export class BuiltinModuleEntry implements IBuiltinModuleEntry {
@@ -30,7 +32,7 @@ export class BuiltinModuleEntry implements IBuiltinModuleEntry {
         if (this.global) {
             return `https://cdn.jsdelivr.net/npm/${this.name}`;
         }
-        return `https://cdn.jsdelivr.net/npm/${this.name}+esm`;
+        return `https://cdn.jsdelivr.net/npm/${this.name}/+esm`;
     }
     moduleType() {
         return "Builtin" as "Builtin";

@@ -1,4 +1,4 @@
-import { IAliases, IBuiltinModuleEntry } from "../types";
+import { IAliases, IBuiltinModuleEntry } from "../types/index.js";
 import { BuiltinModule } from "./alias.js";
 
 
@@ -25,7 +25,20 @@ export function createCDNModule(e:INPMEntry, modval:ModuleValue) {
     }
     return module;
 }*/
+export async function retryloadCDN(aliases:IAliases,e:IBuiltinModuleEntry){
+    return Object.assign(new Error(`Loading '${e.name}' from '${e.url()}'. Try again.`),{
+        retryPromise: loadCDN(aliases, e).catch(e=>console.error(e)),
+    });
+}
 export async function loadCDN(aliases:IAliases, e:IBuiltinModuleEntry):Promise<BuiltinModule> {
+    try {
+        return await _loadCDN(aliases, e);
+    } catch(err) {
+        aliases.invalidModules.add(e.cacheKey());
+        throw err;
+    }
+}
+async function _loadCDN(aliases:IAliases, e:IBuiltinModuleEntry):Promise<BuiltinModule> {
     const name=e.name;
     if (e.global) {
         const globalName = e.global;

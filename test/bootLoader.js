@@ -402,7 +402,9 @@ export function insertBootDisk() {
         const run=FS.get(FS.getEnv("boot"));
         await unzipBlob(this.files[0],run);
         rmbtn();
-        pNode.importModule(fixrun(run));
+        const mod=await pNode.importModule(fixrun(run));
+        console.log(mod);
+        mod.main();
     });
 }
 

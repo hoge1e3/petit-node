@@ -8,9 +8,9 @@ declare type Content={
 }*/
 import {SFile} from "@hoge1e3/fs2";
 import { DependencyContainer, Policy } from "@hoge1e3/sfile";
-import { MIMETypes } from "@hoge1e3/sfile/src/MIMETypes";
-import RootFS from "petit-fs/src/fs/RootFS";
-import { IFileSystem } from "petit-fs/src/fs/types";
+import { MIMETypes } from "@hoge1e3/sfile/src/MIMETypes.js";
+import RootFS from "petit-fs/src/fs/RootFS.js";
+import { IFileSystem } from "petit-fs/src/fs/types.js";
 import { DeviceManager } from "petit-fs/src/vfsUtil.js";
 import { Fstab } from "petit-fs/src/types.js";
 import { EventHandler } from "@hoge1e3/events";
@@ -66,6 +66,7 @@ export interface IAliases {
     addAliases(p:AliasHash):void;
     addAlias(path:string, value:ModuleValue, properties?:string[]):void;
     cache:IModuleCache;
+    invalidModules:Set<CacheKey>; // load-failed cdn / unsupported node-builtin modules 
     addURL(module:ICompiledCJS/*, properties?:string[]*/):void;
     scriptingContext: ScriptingContext;
     initModuleGlobal():Promise<GlobalInfo>;
@@ -156,18 +157,19 @@ export type BootOptions={
     fstab: Fstab[]|undefined,
 };
 export type Initializer=(p:{FS:TFS, pNode: PNode })=>Promise<any>;
-export interface IModuleEntry{
+export type IModuleEntry=IFileBasedModuleEntry|IBuiltinModuleEntry;
+export interface _IModuleEntry{
     cacheKey(): CacheKey,
     moduleType():ModuleType,
 }
-export interface IFileBasedModuleEntry extends IModuleEntry{
+export interface IFileBasedModuleEntry extends _IModuleEntry{
     file: SFile,
     sourceCode: string,
     timestamp: number,
     _shouldReload():boolean;
     moduleType():FileBasedModuleType,
 }
-export interface IBuiltinModuleEntry extends IModuleEntry {// includes cdn
+export interface IBuiltinModuleEntry extends _IModuleEntry {// includes cdn
     name: string,
     url(): string,
     global? :string,

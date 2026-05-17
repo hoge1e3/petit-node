@@ -9,10 +9,12 @@ const fixture={
     "main.js": `
 import {foo,bar} from "./my_module.js";
 foo(bar(21));
+foo(bar(35));
 `,
     "my_module.js": `
+let c=1;
 export function foo(content) {
-    prt(content);
+    prt(c++, content);
 }
 export function bar(x) {
     return x*2;
@@ -24,13 +26,18 @@ main(fixture);
 await sleep();
 const home=pNode.FS.get("/node/");
 const f=home.rel("my_module.js");
+const mod=await pNode.importModule(f);
+mod.foo(100);
 f.text(f.text().replace("*2","*3"));
 prt(f+" Modified!");
 await sleep();
 await pNode.importModule(home.rel("main.js"));
 await sleep();
-checkPrt(`42
+checkPrt(`1 42
+2 70
+3 100
 /node/my_module.js Modified!
-63
+1 63
+2 105
 `);
 </script>

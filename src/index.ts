@@ -15,10 +15,12 @@ import assert from "@hoge1e3/assert";// Replace with assert polyfill, chai.asser
 import * as util from "@hoge1e3/util";
 import * as url from "@hoge1e3/url";
 import * as sfile from "@hoge1e3/sfile";
-import { AliasHash, BootOptions, Core, ESModuleCompilerHandlers, ESModuleCompilerParam, IModuleCache, ImportOrRequire, Module, ModuleValue, PNode, ScriptingContext, TFS } from "../types/";
+import type { AliasHash, BootOptions, Core, ESModuleCompilerHandlers,
+    IModuleCache, IModuleEntry, ImportOrRequire, 
+    Module, ModuleValue, PNode, ScriptingContext, TFS } from "../types/index.js";
 import {require} from "./CommonJS.js";
 export {require, CJSCompiler} from "./CommonJS.js";
-import { CompiledCJS, CompiledESModule, FileBasedModuleEntry } from "./Module.js";
+import { BuiltinModuleEntry, CompiledCJS, CompiledESModule, FileBasedModuleEntry, isBuiltinModuleEntry, resolveModuleEntry } from "./Module.js";
 export { CompiledESModule, FileBasedModuleEntry as ModuleEntry } from "./Module.js";
 import { jsToBlobURL } from "./scriptTag.js";
 import { JSZip,} from "@hoge1e3/fs2";
@@ -28,6 +30,7 @@ import * as vm from "./polyfills/vm.js";
 import * as constants from "./polyfills/constants.js";
 import * as stream from "./polyfills/stream.js";
 import { DeviceManager } from "petit-fs/src/vfsUtil.js";
+import { loadCDN, retryloadCDN } from "./cdn.js";
 
 declare let globalThis:any;
 //declare let global:any;
@@ -208,11 +211,12 @@ init(options:BootOptions={
 }){return this.boot(options);},
 //resolveEntry(wantModuleType: ImportOrRequire, path: string|SFile):ModuleEntry;
 //resolveEntry(wantModuleType: ImportOrRequire, path: string, base: string|SFile):ModuleEntry;
-resolveEntry(wantModuleType: ImportOrRequire, path: string|SFile ,base?:string|SFile):FileBasedModuleEntry{
-    let mod:FileBasedModuleEntry;
+resolveEntry(wantModuleType: ImportOrRequire, path: string|SFile ,base?:string|SFile):IModuleEntry{
+    let mod:IModuleEntry;
     if(base){
         if (typeof path!=="string") throw invalidSpec();
-        mod=FileBasedModuleEntry.resolve(
+        mod=resolveModuleEntry(
+            this.aliases,
             wantModuleType,
             path,
             typeof base==="string"?this.getFS().get(base):base
@@ -230,17 +234,22 @@ resolveEntry(wantModuleType: ImportOrRequire, path: string|SFile ,base?:string|S
 //importModule(path: string|SFile):Promise<ModuleValue>;
 //importModule(path: string, base: string|SFile):Promise<ModuleValue>;
 async importModule(path: string|SFile, base?:string|SFile):Promise<ModuleValue>{
-    let ent;
+    let ent:IModuleEntry;
     const aliases=this.aliases;
     const _path=typeof path==="string"?path:path.path();
-    const incache=aliases.cache.getByPath(_path);
-    if (incache?.value) {
-        return incache.value;
-    } else if (base) {
+    if (base) {
         if (typeof path!=="string") throw invalidSpec();
         ent=this.resolveEntry("import",path,base);
     } else {
         ent=this.resolveEntry("import", path);
+    }
+    const incache=aliases.cache.getByPath(ent.cacheKey());
+    if (incache?.value) {
+        return incache.value;
+    }
+    if (isBuiltinModuleEntry(ent)) {
+        const mod=await loadCDN(this.aliases, ent);
+        return mod.value;
     }
     const compiler=ESModuleCompiler.create({
         aliases: this.aliases,
@@ -321,11 +330,19 @@ addPrecompiledCJSModule(path:string, timestamp:number, compiledCode:Function, de
     const cache=this.aliases.cache;
     const base=file.up()!;
     const require=(path:string)=>{
-        const builtin=cache.getByPath(path);
-        if (builtin?.value) return builtin.value;
-        const entry=FileBasedModuleEntry.resolve("require",path, base);
-        const module=cache.getByPath(entry.file.path());
+        const entry=this.resolveEntry("require",path,base);
+        const module=cache.getByPath(entry.cacheKey());
         if (module?.value) return module.value;
+        if (isBuiltinModuleEntry(entry)){
+            const e:BuiltinModuleEntry=entry;
+            throw retryloadCDN(this.aliases,e);
+            /*throw Object.assign(new Error(`Loading '${e.name}' from '${e.url()}'. Try again.`),{
+                retryPromise: loadCDN(this.aliases, e).catch((e)=>console.error(e)),
+            });*/
+        }
+        //const entry=FileBasedModuleEntry.resolve("require",path, base);
+        //const module=cache.getByPath(entry.file.path());
+        //if (module?.value) return module.value;
         throw new Error(`Cannot resolve ${path}`);
     };
     const exports={} as ModuleValue, module={exports}, filename=file.path(), dirname=base.path();

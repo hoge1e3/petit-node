@@ -2,8 +2,9 @@ import type {ExportAllDeclaration, ExportDefaultDeclaration, ExportNamedDeclarat
 import * as espree from 'espree';
 import { simple, SimpleVisitors } from "acorn-walk";
 import type { SFile } from "@hoge1e3/sfile";
-import { IAliases, ScriptingContext } from "../types";
+import type { IAliases } from "../types/index.js";
 import { jsToBlobURL } from "./scriptTag.js";
+import { asBuiltinKey } from "./alias.js";
 
 export async function genCircularResolver(aliases:IAliases, file: SFile):Promise<string> {
     let src:string;
@@ -17,7 +18,7 @@ export async function genCircularResolver(aliases:IAliases, file: SFile):Promise
     /*if (ids.includes("default")) {
         throw new Error(file+": Cannot resolve circular dependencies with default export.");
     }*/
-    const pNodeURL=aliases.cache.getByPath("pnode:main")!.url;
+    const pNodeURL=aliases.cache.getByPath(asBuiltinKey("pnode:main"))!.url;
     const msrc=`
 import pNode from "${pNodeURL}";
 let ${ids.map((id,i)=>`_${i}`).join(",")};

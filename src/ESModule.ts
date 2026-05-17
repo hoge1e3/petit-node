@@ -91,7 +91,7 @@ export class ESModuleCompiler {
                     return path;
                 }
                 const e=await retry(()=>
-                    resolveModuleEntry("import", path,base));
+                    resolveModuleEntry(aliases, "import", path,base));
                 const m=this.cache.getByPath(e.cacheKey());
                 if (m?.url) {
                     deps.push(m);
@@ -102,7 +102,7 @@ export class ESModuleCompiler {
                 ("import", path,base));*/
                 let compiled: Module;
                 if (!isFileBasedModuleEntry(e)) {
-                    if (!isBuiltinModuleEntry(e)) throw new Error(`Module '${path}' not found`);
+                    //if (!isBuiltinModuleEntry(e)) throw new Error(`Module '${path}' not found`);
                     compiled=await loadCDN(aliases, e);
                     // TODO? create url for global-polluted module
                 } else {

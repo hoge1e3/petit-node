@@ -1,4 +1,4 @@
-import { ScriptingContext } from "../types";
+import type { ScriptingContext } from "../types/index.js";
 
 export function jsToBlobURL(ctx: ScriptingContext,jsCodeString:string):string{
     const blob=new ctx.Blob(

@@ -20,6 +20,7 @@ export function bodyOfKey(key: CacheKey):string {
 export class Aliases implements IAliases{
 gbl_info:GlobalInfo|undefined;
 scriptingContext:ScriptingContext;
+invalidModules=new Set<CacheKey>();
 constructor(ctx:ScriptingContext){
     this.scriptingContext=ctx;
 }

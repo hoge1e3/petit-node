@@ -1,12 +1,12 @@
 import { SFile } from "@hoge1e3/sfile";
-import { IAliases, IModuleCache, Module, ModuleValue, ScriptingContext } from "../types";
+import type { IAliases, IModuleCache, Module, ModuleValue, ScriptingContext } from "../types/index.js";
 import * as FS from "@hoge1e3/fs2";
 import { Aliases, asFileKey } from "./alias.js";
 import { CompiledCJS, FileBasedModuleEntry, isBuiltinModuleEntry, isFileBasedModuleEntry, resolveModuleEntry } from "./Module.js";
 import {ex} from "./errors.js";
 import * as espree from 'espree';
 import { simple, SimpleVisitors } from "acorn-walk";
-import { loadCDN } from "./cdn.js";
+import { loadCDN, retryloadCDN } from "./cdn.js";
 type RequireFunc=((path:string)=>ModuleValue)&{
     deps:Map<string,Module>,
     freezeDeps():void,
@@ -38,18 +38,15 @@ export class CJSCompiler {
         const deps=new Map<string, Module>();
         let depsFrozen=false;
         return Object.assign((path:string)=>{
-            const e=resolveModuleEntry("require", path,base);
+            const e=resolveModuleEntry(this.aliases, "require", path,base);
             const module=this.cache.getByPath(e.cacheKey());// [A]
             if (module) {
                 if (!module.value) throw new Error(`Cannot import ${path}(seems to be ESM) from ${base}(CJS)`);
                 if (!depsFrozen) deps.set(path, module);
                 return module.value;
             }
-            if (!isFileBasedModuleEntry(e)) {
-                if (!isBuiltinModuleEntry(e)) throw new Error(`Module '${path}' not found`);
-                throw Object.assign(new Error(`Loading '${e.name}' from '${e.url()}'. Try again.`),{
-                    retryPromise: loadCDN(this.aliases, e),
-                });
+            if (isBuiltinModuleEntry(e)) {
+                throw retryloadCDN(this.aliases,e);
             }
             const c=this.compile(e);
             //console.log("deps set",path,depsFrozen);
